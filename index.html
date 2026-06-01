@@ -1,0 +1,4639 @@
+<!DOCTYPE html>
+<!--
+  Tir à l'arc — suivi de match par équipe
+  Copyright (C) 2026 rokosmateo
+
+  Ce programme est un logiciel libre : vous pouvez le redistribuer et/ou le
+  modifier selon les termes de la GNU Affero General Public License telle que
+  publiée par la Free Software Foundation, version 3 de la licence.
+
+  Ce programme est distribué dans l'espoir qu'il sera utile, mais SANS AUCUNE
+  GARANTIE. Voir la GNU Affero General Public License pour plus de détails.
+  Vous devriez avoir reçu une copie de la licence avec ce programme (fichier
+  LICENSE). Sinon, voir <https://www.gnu.org/licenses/>.
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Suivi de match — Tir à l'arc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Manrope:wght@300..700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Dark blue-tinted base */
+    --bg: #0e1420;
+    --paper: #171e2c;
+    --ink: #e6eaf4;
+    --ink-soft: #a5adc0;
+    --ink-mute: #6d7689;
+    --line: #2a3346;
+    --line-soft: #1d2536;
+
+    /* Archery palette — tuned for dark background */
+    --gold: #e0b048;
+    --gold-soft: #9c7a2a;
+    --gold-bg: #332611;
+
+    --red: #e47272;
+    --red-bg: #3e1f1f;
+
+    --blue: #82aae2;
+    --blue-bg: #1b2d49;
+
+    --black-c: #a8aec1;
+    --black-bg: #2d3446;
+
+    --white-c: #d8d3c0;
+    --white-border: #948d72;
+
+    --miss: #d67070;
+    --win: #5cb478;
+    --loss: #e06464;
+    --tie: #d8a252;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    min-height: 100vh;
+    padding-bottom: 2rem;
+  }
+  @font-face {
+    font-family: 'Manrope-fallback';
+    src: local('system-ui');
+    font-display: swap;
+  }
+  .display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+
+  /* ───── Header ───── */
+  header.app-header {
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    padding: 1.25rem 1.5rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .brand h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    font-size: 1.8rem;
+    letter-spacing: -0.025em;
+    line-height: 1;
+  }
+  .brand .subtitle {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-mute);
+    font-weight: 500;
+  }
+  .view-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px;
+    background: var(--bg);
+  }
+  .view-toggle button {
+    border: 0;
+    background: transparent;
+    padding: 6px 16px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 999px;
+    transition: all 0.15s;
+  }
+  .view-toggle button.active {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  /* ───── Competition tabs ───── */
+  .comp-tabs {
+    display: flex;
+    gap: 2rem;
+    overflow-x: auto;
+    padding-bottom: 0;
+    margin: 0 -1.5rem;
+    padding: 0 1.5rem;
+    scrollbar-width: none;
+  }
+  .comp-tabs::-webkit-scrollbar { display: none; }
+  .comp-tab {
+    background: transparent;
+    border: 0;
+    padding: 0.6rem 0 0.8rem;
+    font-family: 'Fraunces', serif;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--ink-mute);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: color 0.15s;
+    letter-spacing: -0.01em;
+  }
+  .comp-tab:hover { color: var(--ink-soft); }
+  .comp-tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--gold);
+  }
+  .comp-tab .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--ink-mute);
+    margin-left: 4px;
+    font-weight: 400;
+    vertical-align: 0.2em;
+  }
+  .comp-tab-add {
+    color: var(--ink-mute);
+    font-size: 1rem;
+    padding: 0.6rem 0.3rem 0.8rem;
+  }
+
+  /* ───── Discipline tabs (top level) ───── */
+  .disc-tabs {
+    display: flex;
+    gap: 1.4rem;
+    overflow-x: auto;
+    margin: 0 -1.5rem;
+    padding: 0.35rem 1.5rem 0;
+    scrollbar-width: none;
+    align-items: center;
+  }
+  .disc-tabs::-webkit-scrollbar { display: none; }
+  .disc-tab {
+    background: transparent;
+    border: 0;
+    padding: 0.15rem 0 0.3rem;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-mute);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s;
+  }
+  .disc-tab:hover { color: var(--ink-soft); }
+  .disc-tab.active { color: var(--ink); border-bottom-color: var(--blue); }
+  .disc-tab-add { letter-spacing: 0.04em; font-weight: 600; }
+
+  /* ───── Team chips (second level) ───── */
+  .team-tabs {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    margin: 0 -1.5rem;
+    padding: 0.55rem 1.5rem 0.1rem;
+    scrollbar-width: none;
+    align-items: center;
+  }
+  .team-tabs::-webkit-scrollbar { display: none; }
+  .team-chip {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.12s;
+  }
+  .team-chip:hover { border-color: var(--ink-soft); color: var(--ink); }
+  .team-chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .team-chip .edit { opacity: 0.7; font-size: 0.78rem; }
+  .team-chip .edit:hover { opacity: 1; }
+  .team-chip-add { border-style: dashed; color: var(--ink-mute); }
+
+  /* ───── Team-edit modal fields ───── */
+  .modal .field-label {
+    display: block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+  .modal .archer-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .modal .archer-fields input { margin-bottom: 0; }
+  .modal select.team-type-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    background: var(--bg);
+    color: var(--ink);
+    margin-bottom: 1rem;
+    outline: none;
+    cursor: pointer;
+  }
+  .modal select.team-type-select:focus { border-color: var(--gold); }
+
+  /* ───── Layout ───── */
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 2rem;
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; gap: 1rem; padding: 1rem; }
+  }
+
+  /* ───── Matches list ───── */
+  aside.matches-panel {
+    position: sticky;
+    top: 120px;
+    align-self: start;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+  }
+  @media (max-width: 900px) {
+    aside.matches-panel { position: static; max-height: none; }
+  }
+  .panel-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    padding-left: 2px;
+  }
+  .matches-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 0.75rem;
+  }
+  .match-item {
+    border: 0;
+    background: transparent;
+    text-align: left;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    border-left: 3px solid transparent;
+    transition: all 0.1s;
+  }
+  .match-item:hover { background: rgba(255,255,255,0.04); }
+  .match-item.active {
+    background: var(--paper);
+    border-left-color: var(--gold);
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .match-item .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    font-weight: 400;
+    flex-shrink: 0;
+    min-width: 1.5em;
+  }
+  .match-item .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .match-item .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .match-item .badge.win { background: var(--win); color: white; }
+  .match-item .badge.loss { background: var(--loss); color: white; }
+  .match-item .badge.tie { background: var(--tie); color: white; }
+  .btn-add-match {
+    border: 1px dashed var(--line);
+    background: transparent;
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--ink-mute);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .btn-add-match:hover {
+    border-color: var(--gold);
+    color: var(--ink-soft);
+    background: var(--paper);
+  }
+
+  /* ───── Match view ───── */
+  .match-content {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1.5rem 1.75rem;
+  }
+  @media (max-width: 600px) {
+    .match-content { padding: 1rem; }
+  }
+  .match-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .match-meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .match-meta .match-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.2rem;
+  }
+  .match-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .match-title .vs {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: 1.2rem;
+    color: var(--ink-mute);
+    font-style: italic;
+  }
+  .team-label {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.35rem;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .opponent-input {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 1.35rem;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--line);
+    min-width: 100px;
+    width: auto;
+    max-width: 100%;
+    outline: none;
+    letter-spacing: -0.01em;
+  }
+  .opponent-input:focus { border-bottom-color: var(--gold); }
+  .opponent-input::placeholder { color: var(--ink-mute); font-style: italic; }
+
+  .match-result {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .result-sets {
+    font-family: 'Fraunces', serif;
+    font-size: 2rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    line-height: 1;
+  }
+  .result-sets .dash {
+    color: var(--ink-mute);
+    font-size: 1.2rem;
+    font-weight: 300;
+  }
+  .result-sets .our { color: var(--ink); }
+  .result-sets .their { color: var(--ink-mute); }
+  .result-status {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-weight: 600;
+    margin-top: 0.25rem;
+  }
+  .result-status.win { color: var(--win); }
+  .result-status.loss { color: var(--loss); }
+  .result-status.tie { color: var(--tie); }
+  .result-status.pending { color: var(--ink-mute); font-weight: 500; }
+
+  .btn-icon {
+    border: 0;
+    background: transparent;
+    color: var(--ink-mute);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.78rem;
+  }
+  .btn-icon:hover { background: rgba(255,255,255,0.06); color: var(--ink); }
+
+  /* ───── Scoresheet table ───── */
+  .scoresheet-wrap {
+    margin: 0 -1.75rem;
+    padding: 0 1.75rem;
+    overflow-x: auto;
+  }
+  @media (max-width: 600px) {
+    .scoresheet-wrap { margin: 0 -1rem; padding: 0 1rem; }
+  }
+  table.scoresheet {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    min-width: 620px;
+  }
+  table.scoresheet th {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    padding: 0.5rem 0.3rem;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+  }
+  table.scoresheet th.archer-th {
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    padding-bottom: 0.7rem;
+  }
+
+  table.scoresheet td {
+    padding: 3px 2px;
+    text-align: center;
+    vertical-align: middle;
+  }
+  table.scoresheet tr.volley-row:not(:last-child) td {
+    border-bottom: 1px solid var(--line-soft);
+  }
+  table.scoresheet td.volley-num {
+    font-family: 'Fraunces', serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--ink-mute);
+    padding-right: 0.6rem;
+    width: 28px;
+  }
+  td.arrow-cell { width: 36px; padding: 4px 1px; }
+  td.arrow-cell.second { padding-right: 8px; }
+  td.sep { width: 6px; border-left: 1px dashed var(--line-soft); }
+
+  .arrow-input {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line);
+    background: var(--bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--ink);
+    outline: none;
+    transition: all 0.12s;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    caret-color: transparent;
+  }
+  .arrow-input:hover {
+    border-color: var(--ink-soft);
+    transform: scale(1.05);
+  }
+  .arrow-input:active { transform: scale(0.95); }
+  .arrow-input:focus {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px rgba(224,176,72,0.18);
+  }
+
+  /* Arrow color states mapped to target rings */
+  .arrow-input.filled-x { background: #d9a838; border-color: #f2cc66; color: #1f1505; font-weight: 700; }
+  .arrow-input.filled-x::after { content: ''; }
+  .arrow-input.filled-10 { background: #3f2e10; border-color: var(--gold); color: #f0cc6a; }
+  .arrow-input.filled-9 { background: #2e230e; border-color: var(--gold-soft); color: #d9b048; }
+  .arrow-input.filled-r { background: #4a2020; border-color: var(--red); color: #f0a0a0; }
+  .arrow-input.filled-b { background: #1a2e4e; border-color: #5a8ed0; color: #a6c6ec; }
+  .arrow-input.filled-k { background: var(--black-bg); border-color: #5a6076; color: var(--black-c); }
+  .arrow-input.filled-w { background: var(--white-c); border-color: var(--white-border); color: #2a2618; }
+  .arrow-input.filled-m { background: transparent; border-color: var(--miss); color: var(--miss); font-style: italic; }
+
+  .arrow-input.blocked {
+    opacity: 0.3;
+    cursor: not-allowed;
+    border-style: dashed;
+  }
+  .arrow-input.blocked:hover { transform: none; border-color: var(--line); }
+
+  td.volley-total {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0 0.8rem;
+    color: var(--ink);
+  }
+  td.volley-total.tiny { font-size: 0.8rem; color: var(--ink-mute); font-weight: 400;}
+  td.adv-cell {
+    padding: 4px 4px;
+  }
+  .adv-input {
+    width: 48px;
+    height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: transparent;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--ink);
+    outline: none;
+    padding: 0;
+  }
+  .adv-input:focus { border-color: var(--ink); background: var(--bg); }
+  .adv-input::placeholder { color: transparent; }
+
+  td.setpts {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    padding: 0 0.5rem;
+    width: 48px;
+  }
+  .setpt-pair {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    font-weight: 600;
+  }
+  .setpt-pair .our {
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .setpt-pair .their {
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .setpt-pair .our.win-cell { background: var(--win); color: white; }
+  .setpt-pair .their.win-cell { background: var(--loss); color: white; }
+  .setpt-pair .tie-cell { background: var(--tie); color: white; }
+  .setpt-pair .zero { color: var(--ink-mute); font-weight: 400; }
+  .poulie-cumul { font-weight: 600; color: var(--ink); font-family: 'JetBrains Mono', monospace; }
+
+  tr.totals-row td {
+    padding-top: 0.8rem;
+    border-top: 2px solid var(--ink);
+  }
+  tr.totals-row .label {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    text-align: right;
+    padding-right: 0.8rem;
+  }
+  tr.totals-row .archer-total {
+    font-family: 'Fraunces', serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  tr.totals-row .archer-avg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    font-weight: 400;
+    padding-top: 2px;
+  }
+
+  /* ───── Per-match stats (below scoresheet) ───── */
+  .match-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line-soft);
+  }
+  @media (max-width: 700px) {
+    .match-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  .archer-card {
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: var(--bg);
+  }
+  .archer-card .name {
+    font-family: 'Fraunces', serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.01em;
+  }
+  .archer-card .stats-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.74rem;
+    color: var(--ink-mute);
+    padding: 2px 0;
+  }
+  .archer-card .stats-row strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ───── Global stats view ───── */
+  .global-view {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1.75rem 2rem;
+  }
+  @media (max-width: 600px) {
+    .global-view { padding: 1.25rem; }
+  }
+  .global-view h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 1.5rem;
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.02em;
+  }
+  .global-section {
+    margin-bottom: 2rem;
+  }
+  .global-section h3 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+  .archer-ranking {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+  }
+  .rank-card {
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: var(--bg);
+  }
+  .rank-card .rank-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+  }
+  .rank-card .rank-head .name {
+    font-family: 'Fraunces', serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  .rank-card .rank-head .avg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .rank-card .rank-bar {
+    height: 4px;
+    background: var(--line-soft);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+  .rank-card .rank-bar-fill {
+    height: 100%;
+    background: var(--gold);
+    transition: width 0.4s;
+  }
+  .rank-card .rank-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Score distribution table */
+  .score-dist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+  }
+  .score-dist-table th {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    padding: 0.5rem 0.4rem;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .score-dist-table th:first-child { text-align: left; }
+  .score-dist-table td {
+    padding: 0.4rem 0.4rem;
+    border-bottom: 1px solid var(--line-soft);
+    text-align: center;
+  }
+  .score-dist-table td:first-child {
+    text-align: left;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 500;
+    font-size: 0.82rem;
+  }
+  .score-dist-table td.total-col {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .score-dist-table tr.total-row td {
+    border-top: 1px solid var(--ink);
+    border-bottom: 0;
+    padding-top: 0.5rem;
+    font-weight: 600;
+  }
+  .score-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .score-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .score-swatch.gold { background: #3f2e10; border-color: var(--gold); }
+  .score-swatch.gold-in { background: #d9a838; border-color: #f2cc66; }
+  .score-swatch.red { background: #4a2020; border-color: var(--red); }
+  .score-swatch.blue { background: #1a2e4e; border-color: #5a8ed0; }
+  .score-swatch.black { background: var(--black-bg); border-color: #5a6076; }
+  .score-swatch.white { background: var(--white-c); border-color: var(--white-border); }
+  .score-swatch.miss { background: transparent; border-color: var(--miss); }
+
+  /* Color bar chart */
+  .color-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .color-bar-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 50px;
+    align-items: center;
+    gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+  }
+  .color-bar-row .label {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+  }
+  .color-bar {
+    display: flex;
+    height: 20px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--line-soft);
+  }
+  .color-bar .seg {
+    transition: flex 0.3s;
+  }
+  .color-bar .seg.seg-0 { background: #ff2d95; }
+  .color-bar .seg.seg-1 { background: #00c853; }
+  .color-bar .seg.seg-2 { background: #00e5ff; }
+  .color-bar .seg.seg-3 { background: #ff9100; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--ink-mute);
+  }
+  .empty-state .display {
+    font-size: 1.2rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.4rem;
+  }
+  .empty-state .hint {
+    font-size: 0.85rem;
+  }
+
+  /* ───── Modal ───── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(4,7,14,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1rem;
+    animation: fadeIn 0.15s;
+  }
+  .modal {
+    background: var(--paper);
+    border-radius: 6px;
+    padding: 1.5rem;
+    max-width: 420px;
+    width: 100%;
+    border: 1px solid var(--line);
+  }
+  .modal h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .modal input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    background: var(--bg);
+    color: var(--ink);
+    margin-bottom: 1rem;
+    outline: none;
+  }
+  .modal input::placeholder { color: var(--ink-mute); }
+  .modal input:focus { border-color: var(--gold); }
+  .modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+  .btn {
+    padding: 7px 14px;
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .btn:hover { border-color: var(--ink-soft); }
+  .btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn.primary:hover { background: #fff; }
+  .btn.danger { color: var(--loss); border-color: var(--loss); }
+  .btn.danger:hover { background: var(--red-bg); }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .hidden { display: none !important; }
+
+  /* Spectator mode: hide all edit affordances */
+  body.spectator .btn-add-match,
+  body.spectator .fab-target,
+  body.spectator #btn-delete-match,
+  body.spectator .btn#btn-import,
+  body.spectator .btn#btn-reset,
+  body.spectator .disc-tab-add,
+  body.spectator .team-chip-add,
+  body.spectator .team-chip .edit { display: none !important; }
+  body.spectator .input-hint.coach-hint { display: none; }
+
+  /* ───── Grouping view ───── */
+  .grouping-view {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1.5rem 1.75rem;
+  }
+  @media (max-width: 600px) {
+    .grouping-view { padding: 1rem 0.8rem; }
+  }
+  .grouping-view h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.02em;
+  }
+  .grouping-subtitle {
+    font-size: 0.85rem;
+    color: var(--ink-mute);
+    margin-bottom: 1rem;
+  }
+  .grouping-scope {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .grouping-scope label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    margin-right: 0.25rem;
+  }
+  .grouping-scope select {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    outline: none;
+    cursor: pointer;
+    max-width: 100%;
+  }
+  .grouping-scope select:focus { border-color: var(--gold); }
+  .grouping-scope-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--ink-mute);
+    margin-left: auto;
+  }
+  .grouping-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  @media (max-width: 1100px) {
+    .grouping-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 500px) {
+    .grouping-grid { grid-template-columns: 1fr; gap: 1.2rem; }
+  }
+  .archer-target-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.8rem;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: var(--bg);
+  }
+  .archer-target-card .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .archer-target-card .name {
+    font-family: 'Fraunces', serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .archer-target-card .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+  }
+  .archer-target-card .target-box {
+    aspect-ratio: 1;
+    width: 100%;
+    position: relative;
+    background: transparent;
+  }
+  .archer-target-card .target-box svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .archer-target-card .no-data {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    color: var(--ink-mute);
+    font-size: 0.78rem;
+    padding: 1rem;
+    pointer-events: none;
+    gap: 0.3rem;
+  }
+  .archer-target-card .no-data .no-data-main {
+    font-family: 'Fraunces', serif;
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+  }
+  .archer-target-card .footer-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px 8px;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--line-soft);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+  }
+  .archer-target-card .footer-stats .cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .archer-target-card .footer-stats .cell .lbl {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-mute);
+    font-weight: 600;
+  }
+  .archer-target-card .footer-stats .cell .val {
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 0.88rem;
+  }
+  .mpi-marker {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2;
+  }
+  .mpi-marker-inner {
+    fill: #fff;
+  }
+
+  /* ───── Substitute (non-shooter) cells ───── */
+  td.sub-cell {
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      var(--line-soft) 4px,
+      var(--line-soft) 5px
+    );
+  }
+  .sub-dash {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px dashed var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-mute);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    margin: 0 auto;
+    background: transparent;
+  }
+  .volley-num-btn {
+    background: transparent;
+    border: 0;
+    font-family: 'Fraunces', serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--ink-mute);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    line-height: 1;
+  }
+  .volley-num-btn:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--ink);
+  }
+  .sub-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--ink-mute);
+    letter-spacing: 0.04em;
+    margin-top: 1px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    background: var(--line-soft);
+  }
+  .sub-badge.barrage-badge {
+    background: var(--gold);
+    color: #1f1505;
+    letter-spacing: 0.08em;
+    font-size: 0.54rem;
+  }
+  .barrage-dash { opacity: 0.4; }
+
+  /* Popover for setting sub */
+  td.volley-num { position: relative; }
+  .sub-popover {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 40;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.7rem 0.8rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    min-width: 240px;
+    animation: fadeIn 0.1s;
+  }
+  .popover-title {
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+  }
+  .popover-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .sub-chip {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    transition: all 0.1s;
+  }
+  .sub-chip:hover {
+    border-color: var(--ink-soft);
+    color: var(--ink);
+  }
+  .sub-chip.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .sub-chip.clear {
+    font-style: italic;
+  }
+
+  /* ───── Target input modal ───── */
+  .target-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(4,7,14,0.75);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.12s;
+  }
+  .target-modal {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 96vh;
+    overflow-y: auto;
+    padding: 1.2rem 1.2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .target-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  .target-modal-head .who {
+    font-family: 'Fraunces', serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .target-modal-head .when {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .target-close {
+    background: transparent;
+    border: 0;
+    color: var(--ink-mute);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 2px 8px;
+    line-height: 1;
+  }
+  .target-close:hover { color: var(--ink); }
+
+  .target-wrap {
+    position: relative;
+    aspect-ratio: 1;
+    max-width: 420px;
+    margin: 0 auto;
+    width: 100%;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .target-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  .target-marker {
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .target-readout {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.4rem 0.2rem;
+  }
+  .target-readout .pending-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--ink);
+    min-width: 3ch;
+    text-align: center;
+  }
+  .target-readout .pending-label {
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+  }
+  .target-readout-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+  }
+
+  .target-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .target-actions button {
+    flex: 1;
+    min-width: 70px;
+    padding: 10px 8px;
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .target-actions button:hover {
+    border-color: var(--ink-soft);
+    background: var(--bg);
+  }
+  .target-actions button.primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .target-actions button.primary:hover { background: #fff; }
+  .target-actions button.miss { color: var(--miss); border-color: var(--miss); }
+  .target-actions button.miss:hover { background: rgba(214,112,112,0.1); }
+  .target-actions button[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+  /* Shot trail (recent arrows placed via target) */
+  .target-trail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 28px;
+    padding: 0.3rem 0.2rem;
+    border-top: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .target-trail .trail-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+  .target-trail .trail-item.current {
+    background: var(--gold-bg);
+    border-color: var(--gold);
+    color: #f0cc6a;
+  }
+
+  /* FAB to trigger target mode */
+  .fab-target {
+    position: fixed;
+    bottom: 1.2rem;
+    right: 1.2rem;
+    z-index: 30;
+    background: var(--ink);
+    color: var(--paper);
+    border: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.3rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .fab-target:hover { transform: scale(1.05); }
+  .fab-target svg { width: 28px; height: 28px; }
+
+  /* Mobile responsive enhancements */
+  @media (max-width: 700px) {
+    html, body { font-size: 14px; }
+    header.app-header {
+      padding: 0.85rem 1rem 0;
+      position: static;          /* ne reste plus collé en haut sur mobile */
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .brand h1 { font-size: 1.4rem; }
+    .brand .subtitle { font-size: 0.68rem; }
+    .view-toggle button { padding: 5px 12px; font-size: 0.76rem; }
+    .comp-tabs { gap: 1.3rem; }
+    .comp-tab { font-size: 0.98rem; padding: 0.5rem 0 0.65rem; }
+    .disc-tabs { gap: 1rem; margin: 0 -1rem; padding: 0.3rem 1rem 0; }
+    .team-tabs { gap: 0.4rem; margin: 0 -1rem; padding: 0.45rem 1rem 0.1rem; }
+    .comp-tabs { margin: 0 -1rem; padding: 0 1rem; }
+
+    /* Tableau de match — colonnes V plus étroites, cercles de flèches un peu plus gros */
+    table.scoresheet td.volley-num { width: 20px; padding-right: 0.3rem; font-size: 0.82rem; }
+    .volley-num-btn { font-size: 0.82rem; padding: 3px 4px; }
+    td.arrow-cell { width: 40px; padding: 5px 1px; }
+    .arrow-input { width: 38px; height: 38px; font-size: 0.94rem; }
+
+    main { padding: 0.8rem; gap: 0.8rem; }
+
+    aside.matches-panel {
+      max-height: none;
+      order: 2;
+    }
+    #match-view { order: 1; }
+
+    .matches-list {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+      gap: 5px;
+    }
+    .matches-list::-webkit-scrollbar { display: none; }
+    .match-item {
+      flex-direction: column;
+      align-items: flex-start;
+      min-width: 130px;
+      border-left: 0;
+      border-bottom: 3px solid transparent;
+      padding: 8px 10px;
+    }
+    .match-item.active {
+      border-left: 0;
+      border-bottom-color: var(--gold);
+    }
+
+    .match-content { padding: 0.8rem 0.7rem; }
+    .match-header { flex-direction: column; gap: 0.7rem; }
+    .match-result { text-align: left; align-self: flex-start; }
+    .result-sets { font-size: 1.6rem; }
+
+    .scoresheet-wrap { margin: 0 -0.7rem; padding: 0 0.7rem; }
+    table.scoresheet { min-width: 540px; }
+
+    .match-stats { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .archer-card { padding: 0.6rem 0.7rem; }
+
+    .global-view { padding: 1rem 0.8rem; }
+    .global-view h2 { font-size: 1.25rem; }
+    .archer-ranking { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .rank-card { padding: 0.7rem 0.8rem; }
+
+    .fab-target {
+      bottom: 0.8rem;
+      right: 0.8rem;
+      width: 52px;
+      height: 52px;
+    }
+
+    .sub-popover {
+      position: fixed;
+      left: 0.8rem;
+      right: 0.8rem;
+      top: auto;
+      bottom: 5rem;
+      width: auto;
+    }
+  }
+
+  /* Loading state */
+  .loading { opacity: 0.4; pointer-events: none; }
+  .saving-indicator {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    font-family: 'JetBrains Mono', monospace;
+    opacity: 0;
+    transition: opacity 0.2s;
+    background: var(--paper);
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+  }
+  .saving-indicator.visible { opacity: 1; }
+  .saving-indicator.toast {
+    background: var(--gold-bg);
+    border-color: var(--gold);
+    color: #f0cc6a;
+    max-width: calc(100vw - 2rem);
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.82rem;
+    padding: 8px 14px;
+    line-height: 1.4;
+    border-radius: 6px;
+  }
+
+  /* Connection status pill (in header subtitle) */
+  .conn-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+    vertical-align: 0.1em;
+  }
+  .conn-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .conn-status.online { background: rgba(92, 180, 120, 0.15); color: var(--win); }
+  .conn-status.online::before { animation: pulse 2s ease-in-out infinite; }
+  .conn-status.connecting { background: rgba(216, 162, 82, 0.15); color: var(--tie); }
+  .conn-status.offline { background: rgba(109, 118, 137, 0.2); color: var(--ink-mute); }
+  .conn-status.error { background: rgba(224, 100, 100, 0.15); color: var(--loss); }
+  .conn-status.local { background: rgba(109, 118, 137, 0.2); color: var(--ink-mute); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Coach mode toggle button (lock/unlock) */
+  .mode-toggle {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-mute);
+    cursor: pointer;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    margin-left: 6px;
+    vertical-align: 0.05em;
+    transition: all 0.12s;
+  }
+  .mode-toggle:hover {
+    border-color: var(--ink-soft);
+    color: var(--ink-soft);
+  }
+  .mode-toggle.coach {
+    background: rgba(92, 180, 120, 0.12);
+    border-color: var(--win);
+    color: var(--win);
+  }
+  .mode-toggle.coach:hover {
+    background: rgba(92, 180, 120, 0.22);
+  }
+
+  /* Helper / hint keys */
+  .input-hint {
+    font-size: 0.7rem;
+    color: var(--ink-mute);
+    margin-top: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .input-hint kbd {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 0.72rem;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <div>
+      <div class="subtitle"><span id="app-subtitle">Nom de votre club · Saison 2026</span> · <span class="conn-status connecting" id="conn-status">Connexion…</span><button class="mode-toggle" id="mode-toggle" title="Changer de mode">🔒 Spectateur</button></div>
+      <h1>Feuille de match</h1>
+    </div>
+    <div class="view-toggle">
+      <button id="view-match" class="active">Match</button>
+      <button id="view-grouping">Groupement</button>
+      <button id="view-global">Statistiques</button>
+    </div>
+  </div>
+  <nav class="disc-tabs" id="disc-tabs"></nav>
+  <nav class="team-tabs" id="team-tabs"></nav>
+  <nav class="comp-tabs" id="comp-tabs"></nav>
+</header>
+
+<main>
+  <aside class="matches-panel" id="matches-panel">
+    <div class="panel-label">Matches</div>
+    <div class="matches-list" id="matches-list"></div>
+    <button class="btn-add-match" id="btn-add-match">+ Nouveau match</button>
+  </aside>
+
+  <section id="match-view"></section>
+  <section id="grouping-view" class="grouping-view hidden"></section>
+  <section id="global-view" class="global-view hidden"></section>
+</main>
+
+<div class="saving-indicator" id="saving-indicator">sauvegardé</div>
+
+<script>
+// ╔═══════════════════════════════════════════════════════════╗
+// ║  CONFIGURATION DU CLUB — modifie uniquement ce bloc.       ║
+// ║  C'est ici que tu personnalises l'application pour TON     ║
+// ║  club avant de la partager. (La config Firebase se trouve  ║
+// ║  plus bas, cherche « FIREBASE_CONFIG ».)                   ║
+// ╚═══════════════════════════════════════════════════════════╝
+const APP_CONFIG = {
+  // Nom affiché en haut de la page (sous-titre).
+  clubName: 'Nom de votre club · Saison 2026',
+  // Titre de l'onglet du navigateur.
+  pageTitle: 'Suivi de match — Tir à l\'arc'
+  // Le mot de passe coach n'est PLUS dans le code : la connexion se fait
+  // via Firebase Authentication (comptes créés dans la console Firebase).
+  // Voir la section « Sécurité » du README.
+};
+
+// Applique le nom du club et le titre de la page au chargement.
+function applyAppConfig() {
+  try { document.title = APP_CONFIG.pageTitle; } catch (e) {}
+  const sub = document.getElementById('app-subtitle');
+  if (sub) sub.textContent = APP_CONFIG.clubName;
+}
+
+// ───────────────────────────────────────────────────────────
+// Data model & storage
+// ───────────────────────────────────────────────────────────
+// Default roster for the historical team (extérieur, femme classique, 70m).
+// Each team now stores its own editable roster — these names are only the seed.
+// Noms d'archers par défaut, utilisés UNIQUEMENT pour amorcer une base vide
+// (premier lancement d'un nouveau club) et comme filet de secours si une équipe
+// se retrouve sans archers. Chaque club renomme ensuite ses archers dans l'app.
+const DEFAULT_ARCHERS = ['Archère 1', 'Archère 2', 'Archère 3', 'Archère 4'];
+// Couleur par archer (index 0..3) pour les impacts sur la cible et les barres.
+// Teintes vives et bien séparées entre elles, et qui ressortent sur les anneaux
+// (or / rouge / bleu / noir) grâce au liseré blanc autour de chaque point.
+const SEG_COLORS = ['#ff2d95', '#00c853', '#00e5ff', '#ff9100'];
+// Catalogue des types d'équipe : genre (F/M) + arme (classique/poulie).
+// Classique et poulie partagent le MÊME format de match (3 archers tireurs
+// + 1 remplaçant par volée, 5 volées de 2 flèches, barrage si égalité). L'arme
+// est conservée pour l'affichage ; le genre pilote les libellés « archère »/« archer ».
+const TEAM_TYPES = [
+  { name: 'Femme classique', gender: 'F', bow: 'classique' },
+  { name: 'Homme classique', gender: 'M', bow: 'classique' },
+  { name: 'Femme poulie',    gender: 'F', bow: 'poulie' },
+  { name: 'Homme poulie',    gender: 'M', bow: 'poulie' }
+];
+function teamTypeByName(n) { return TEAM_TYPES.find(t => t.name === n) || null; }
+const STORAGE_KEY = 'd1_2026_data';
+
+// Compétitions/rencontres par défaut pour amorcer une base vide.
+// Laissé VIDE volontairement : un nouveau club démarre sur une page blanche
+// et crée ses propres compétitions et matchs directement dans l'application
+// (bouton « + Ajouter »). Pour pré-remplir des rencontres, ajoute des entrées
+// au format  'Nom de la compétition': ['Adversaire 1', 'Adversaire 2', …].
+const DEFAULT_MATCHES = {};
+
+function emptyVolley() {
+  return {
+    arrows: [[null,null],[null,null],[null,null],[null,null]],
+    positions: [[null,null],[null,null],[null,null],[null,null]],
+    subs: [false, false, false, false],
+    barrage: false,
+    adv: null
+  };
+}
+function emptyMatch(opponent) {
+  const volees = [emptyVolley(), emptyVolley(), emptyVolley(), emptyVolley(), emptyVolley()];
+  volees[4].barrage = true;   // Volley 5 is always the shoot-off: 3 archers × 1 arrow
+  return {
+    id: 'm_' + Math.random().toString(36).slice(2, 10),
+    opponent: opponent || '',
+    volees: volees
+  };
+}
+
+// Helper: number of arrow slots per archer in a volley (2 normally, 1 in barrage)
+function numArrowSlots(v) { return v && v.barrage ? 1 : 2; }
+
+// Helper: can this archer shoot in this volley?
+// Rule: max 3 archers per volley. Substituted archer can't. If she already
+// has arrows, yes. Otherwise, only if fewer than 3 others already have arrows.
+function canArcherShoot(volley, archerIdx) {
+  const subs = volley.subs || [false, false, false, false];
+  if (subs[archerIdx]) return false;
+  const hasOwn = volley.arrows[archerIdx].some(a => arrowIsSet(a));
+  if (hasOwn) return true;
+  let othersWithArrows = 0;
+  for (let ai = 0; ai < 4; ai++) {
+    if (ai === archerIdx) continue;
+    if (volley.arrows[ai].some(a => arrowIsSet(a))) othersWithArrows++;
+  }
+  return othersWithArrows < 3;
+}
+function defaultState() {
+  const comps = {};
+  for (const [compName, opponents] of Object.entries(DEFAULT_MATCHES)) {
+    comps[compName] = { matches: opponents.map(o => emptyMatch(o)) };
+  }
+  // New hierarchy: Disciplines → Équipes → Compétitions → Matches.
+  // The historical data is the outdoor (extérieur) 70m women's recurve team.
+  return {
+    disciplines: {
+      'Extérieur': {
+        teamOrder: ['Femme classique'],
+        teams: {
+          'Femme classique': {
+            archers: [...DEFAULT_ARCHERS],
+            gender: 'F',
+            bow: 'classique',
+            // Format de match commun au classique et au poulie (set-points,
+            // 5 volées de 2 flèches, barrage si égalité).
+            format: 'classique',
+            compOrder: Object.keys(DEFAULT_MATCHES),
+            competitions: comps
+          }
+        }
+      }
+    },
+    disciplineOrder: ['Extérieur']
+  };
+}
+
+// ─── Accessors for the active discipline / team / competitions ──
+function getActiveDiscipline() {
+  return state.disciplines ? (state.disciplines[ui.activeDiscipline] || null) : null;
+}
+function getActiveTeam() {
+  const d = getActiveDiscipline();
+  return d && d.teams ? (d.teams[ui.activeTeam] || null) : null;
+}
+function getComps() { const t = getActiveTeam(); return t ? (t.competitions || {}) : {}; }
+function getCompOrder() { const t = getActiveTeam(); return t ? (t.compOrder || []) : []; }
+function getArchers() { const t = getActiveTeam(); return t && t.archers && t.archers.length ? t.archers : [...DEFAULT_ARCHERS]; }
+function numArchers() { return getArchers().length; }
+// Short label for an archer name: "Marie" → "Mar.", "Bo" → "Bo".
+function shortArcherName(name) {
+  const n = (name || '').trim();
+  if (!n) return '—';
+  return n.length <= 4 ? n : (n.slice(0, 3) + '.');
+}
+// ─── Gendered labels (archère/archer …) driven by the team's gender ──
+function genderForTeam(team, name) {
+  if (team && (team.gender === 'F' || team.gender === 'M')) return team.gender;
+  return /homme/i.test(name || '') ? 'M' : 'F';
+}
+function activeGender() { return genderForTeam(getActiveTeam(), ui.activeTeam); }
+// ─── Arme de l'équipe (classique = sets, poulie = cumul de points) ──
+function bowForTeam(team, name) {
+  if (team && (team.bow === 'classique' || team.bow === 'poulie')) return team.bow;
+  return /poulie/i.test(name || '') ? 'poulie' : 'classique';
+}
+function bowForMatch(match) {
+  // A match carries its team's bow via the active team context. When iterating
+  // matches outside the active team (global view), the caller passes the team.
+  return bowForTeam(getActiveTeam(), ui.activeTeam);
+}
+function nArcher(gender, plural, cap) {
+  let w = gender === 'M' ? 'archer' : 'archère';
+  if (plural) w += 's';
+  return cap ? (w.charAt(0).toUpperCase() + w.slice(1)) : w;
+}
+function nSub(gender) { return gender === 'M' ? 'remplaçant' : 'remplaçante'; }
+function nNonShooter(gender, cap) {
+  const w = gender === 'M' ? 'non-tireur' : 'non-tireuse';
+  return cap ? (w.charAt(0).toUpperCase() + w.slice(1)) : w;
+}
+function nAllShoot(gender) { return gender === 'M' ? 'Tous tirent' : 'Toutes tirent'; }
+
+// UI preferences — LOCAL to each device, never synced.
+// This keeps the "which view / which match" choice independent per user.
+const UI_KEY = 'd1_2026_ui';
+function defaultUi() {
+  return {
+    activeDiscipline: 'Extérieur',
+    activeTeam: 'Femme classique',
+    activeComp: null,        // Résolu vers la première compétition existante au boot
+    activeMatchId: null,     // Will be resolved to first match at boot
+    view: 'match',
+    groupingScope: 'current'
+  };
+}
+
+let state = defaultState();
+let ui = defaultUi();
+let saveTimer = null;
+let openPopoverV = null;         // Index of volley whose sub-popover is open, or null
+let targetState = null;          // { v, a, i } when target modal is open, else null
+let targetHistory = [];          // Recent arrows entered via target, for undo trail
+
+// ─── Mode coach / spectateur ──────────────────────────────────
+// Par défaut, l'app s'ouvre en mode spectateur (lecture seule).
+// Pour passer en mode coach (saisie activée), clique sur 🔒 en haut et
+// entre le mot de passe. Il est mémorisé localement sur l'appareil.
+// ─── Authentification coach (Firebase Auth) ───────────────────
+// Les visiteurs voient les scores en LECTURE SEULE (mode spectateur).
+// Seuls les comptes coach — créés dans la console Firebase → Authentication —
+// peuvent se connecter (email + mot de passe) pour saisir les scores.
+// La vraie protection vient de la règle Firestore
+//   « allow write: if request.auth != null »
+// qui empêche, CÔTÉ SERVEUR, toute écriture sans être connecté. Le mode
+// spectateur n'est donc plus une simple barrière visuelle.
+let firebaseAuth = null;     // Instance Firebase Auth (définie dans initFirebase)
+let currentUser = null;      // Utilisateur connecté, ou null
+let isCoach = false;         // Vrai uniquement si un coach est authentifié
+function READ_ONLY() { return !isCoach; }
+
+function applyCoachMode() {
+  if (isCoach) {
+    document.body.classList.remove('spectator');
+  } else {
+    document.body.classList.add('spectator');
+  }
+  const btn = document.getElementById('mode-toggle');
+  if (btn) {
+    if (isCoach) {
+      btn.textContent = '✓ Coach';
+      btn.classList.add('coach');
+      btn.title = 'Cliquer pour repasser en mode spectateur';
+    } else {
+      btn.textContent = '🔒 Spectateur';
+      btn.classList.remove('coach');
+      btn.title = 'Cliquer pour passer en mode coach';
+    }
+  }
+}
+
+function toggleCoachMode(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  if (isCoach) {
+    // Lock back down — use showModal for consistency
+    showCoachLockModal();
+  } else {
+    showCoachUnlockModal();
+  }
+}
+
+function showCoachUnlockModal() {
+  // Guard: remove any pre-existing overlay
+  document.querySelectorAll('.coach-modal-overlay').forEach(el => el.remove());
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay coach-modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation();">
+      <h3>Mode coach</h3>
+      <p style="font-size: 0.85rem; color: var(--ink-mute); margin-bottom: 0.75rem;">
+        Connecte-toi avec ton compte coach pour activer la saisie.
+      </p>
+      <input type="email" id="coach-email-input" placeholder="Email" autocomplete="username" autocapitalize="off" style="margin-bottom: 0.5rem;">
+      <input type="password" id="coach-pwd-input" placeholder="Mot de passe" autocomplete="current-password" autocapitalize="off">
+      <div id="coach-error" style="font-size: 0.82rem; color: var(--loss); margin-top: 0.5rem; min-height: 1em;"></div>
+      <div class="modal-actions">
+        <button class="btn" id="coach-cancel">Annuler</button>
+        <button class="btn primary" id="coach-ok">Se connecter</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const emailInput = overlay.querySelector('#coach-email-input');
+  const input = overlay.querySelector('#coach-pwd-input');
+  const errorEl = overlay.querySelector('#coach-error');
+  const okBtn = overlay.querySelector('#coach-ok');
+  emailInput.focus();
+
+  const close = () => overlay.remove();
+
+  const attempt = async () => {
+    errorEl.textContent = '';
+    if (!window._authSignIn) {
+      errorEl.textContent = 'Connexion à Firebase en cours, réessaie dans un instant…';
+      return;
+    }
+    const email = emailInput.value.trim();
+    const pwd = input.value;
+    if (!email || !pwd) { errorEl.textContent = 'Renseigne ton email et ton mot de passe.'; return; }
+    okBtn.disabled = true;
+    okBtn.textContent = 'Connexion…';
+    try {
+      await window._authSignIn(email, pwd);
+      // onAuthStateChanged s'occupe de passer en mode coach + re-render.
+      close();
+      showToast('Mode coach activé — saisie disponible');
+    } catch (err) {
+      okBtn.disabled = false;
+      okBtn.textContent = 'Se connecter';
+      input.value = '';
+      // Message générique : on ne révèle pas si c'est l'email ou le mdp.
+      errorEl.textContent = 'Email ou mot de passe incorrect.';
+      input.focus();
+    }
+  };
+
+  overlay.querySelector('#coach-cancel').onclick = close;
+  okBtn.onclick = attempt;
+  const onKey = (e) => {
+    if (e.key === 'Enter') attempt();
+    else if (e.key === 'Escape') close();
+  };
+  emailInput.onkeydown = onKey;
+  input.onkeydown = onKey;
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+}
+
+function showCoachLockModal() {
+  document.querySelectorAll('.coach-modal-overlay').forEach(el => el.remove());
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay coach-modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation();">
+      <h3>Se déconnecter ?</h3>
+      <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">
+        La saisie sera désactivée et tu repasseras en mode spectateur. Tu pourras te
+        reconnecter avec ton compte coach à tout moment.
+      </p>
+      <div class="modal-actions">
+        <button class="btn" id="coach-lock-cancel">Annuler</button>
+        <button class="btn primary" id="coach-lock-ok">Se déconnecter</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+
+  overlay.querySelector('#coach-lock-cancel').onclick = close;
+  overlay.querySelector('#coach-lock-ok').onclick = async () => {
+    try { if (window._authSignOut) await window._authSignOut(); } catch (e) {}
+    // onAuthStateChanged repassera isCoach à false + re-render.
+    close();
+    showToast('Mode spectateur activé');
+  };
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+}
+
+// ─── Firebase Firestore: shared live storage ───────────────────
+// A single 'team' document holds the whole state. Every client listens to
+// it in real-time, so saving on one device updates the others within a second.
+// localStorage stays as a cache — last known state shown immediately at load,
+// then replaced by whatever Firestore pushes.
+const FIREBASE_CONFIG = {
+  apiKey: "VOTRE_API_KEY",
+  authDomain: "VOTRE_PROJET.firebaseapp.com",
+  projectId: "VOTRE_PROJET",
+  storageBucket: "VOTRE_PROJET.firebasestorage.app",
+  messagingSenderId: "VOTRE_SENDER_ID",
+  appId: "VOTRE_APP_ID"
+};
+const TEAM_ID = 'equipe-principale';   // Nom du document partagé dans Firestore.
+                                       // Change-le pour faire tourner plusieurs
+                                       // instances séparées sur le même projet.
+
+let firebaseApp = null;
+let firestoreDb = null;
+let teamDocRef = null;
+let firestoreUnsubscribe = null;
+let isApplyingRemote = false;  // Guard to skip echo-save when we get our own write back
+let lastLocalPayload = null;   // Last JSON we wrote — used to compare incoming snapshots
+let firestoreReady = false;
+
+async function initFirebase() {
+  try {
+    const appMod = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');
+    const fsMod = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const authMod = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js');
+    firebaseApp = appMod.initializeApp(FIREBASE_CONFIG);
+    firestoreDb = fsMod.getFirestore(firebaseApp);
+
+    // ─── Auth : suit l'état de connexion du coach ───
+    firebaseAuth = authMod.getAuth(firebaseApp);
+    // Expose les fonctions de connexion/déconnexion pour les fenêtres modales.
+    window._authSignIn = (email, pwd) => authMod.signInWithEmailAndPassword(firebaseAuth, email, pwd);
+    window._authSignOut = () => authMod.signOut(firebaseAuth);
+    // À chaque changement (connexion, déconnexion, ou session restaurée au
+    // rechargement), on met à jour le mode coach/spectateur et on rafraîchit.
+    authMod.onAuthStateChanged(firebaseAuth, (user) => {
+      currentUser = user;
+      isCoach = !!user;
+      applyCoachMode();
+      if (typeof render === 'function') render();
+    });
+    // Enable offline persistence — the SDK queues writes when network is down
+    // and flushes them automatically when it comes back.
+    try {
+      await fsMod.enableIndexedDbPersistence(firestoreDb);
+    } catch (persistErr) {
+      // Another tab already has persistence, or browser doesn't support it.
+      // Not fatal — online sync still works.
+      console.warn('Firestore offline persistence unavailable:', persistErr.code);
+    }
+    teamDocRef = fsMod.doc(firestoreDb, 'teams', TEAM_ID);
+    firestoreReady = true;
+    setConnectionStatus('connecting');
+
+    // Live listener
+    firestoreUnsubscribe = fsMod.onSnapshot(teamDocRef, (snap) => {
+      setConnectionStatus(snap.metadata.fromCache ? 'offline' : 'online');
+      if (!snap.exists()) return;
+      const data = snap.data();
+      if (!data || !data.payload) return;
+      const remotePayload = data.payload;
+      // Ignore echoes of our own writes
+      if (remotePayload === lastLocalPayload) return;
+      try {
+        const remoteState = JSON.parse(remotePayload);
+        isApplyingRemote = true;
+        state = { ...defaultState(), ...remoteState };
+        migrateState();
+        // If the match we were viewing got deleted on another device, or the
+        // comp was renamed/removed, fall back to a valid one so we don't crash.
+        resolveActiveMatch();
+        // Cache locally too
+        try { localStorage.setItem(STORAGE_KEY, remotePayload); } catch (e) {}
+        lastLocalPayload = remotePayload;
+        // Re-render current view (but don't re-open target modal etc.)
+        if (typeof render === 'function') render();
+        isApplyingRemote = false;
+      } catch (e) {
+        console.error('Bad remote payload:', e);
+        isApplyingRemote = false;
+      }
+    }, (err) => {
+      console.error('Firestore listener error:', err);
+      setConnectionStatus('error');
+    });
+
+    // Also push current local state to Firestore the first time we connect,
+    // if Firestore has nothing yet and we have local data to seed.
+    // Une écriture n'est autorisée que pour un coach connecté (règles Firestore) ;
+    // sinon le document sera créé à la première saisie d'un coach.
+    const initialSnap = await fsMod.getDoc(teamDocRef);
+    if (!initialSnap.exists() && firebaseAuth && firebaseAuth.currentUser) {
+      await pushStateToFirestore();
+    }
+
+    // Keep a reference to setDoc for saveState
+    window._fsSetDoc = fsMod.setDoc;
+    window._fsServerTimestamp = fsMod.serverTimestamp;
+  } catch (e) {
+    console.error('Firebase init failed:', e);
+    setConnectionStatus('error');
+    firestoreReady = false;
+  }
+}
+
+async function pushStateToFirestore() {
+  if (!firestoreReady || !teamDocRef || !window._fsSetDoc) return false;
+  const payload = JSON.stringify(state);
+  lastLocalPayload = payload;
+  try {
+    await window._fsSetDoc(teamDocRef, {
+      payload: payload,
+      updatedAt: window._fsServerTimestamp()
+    });
+    return true;
+  } catch (e) {
+    console.error('Firestore write failed:', e);
+    return false;
+  }
+}
+
+function setConnectionStatus(status) {
+  const el = document.getElementById('conn-status');
+  if (!el) return;
+  el.className = 'conn-status ' + status;
+  const labels = {
+    connecting: 'Connexion…',
+    online: 'En ligne',
+    offline: 'Hors ligne',
+    error: 'Erreur',
+    local: 'Local'
+  };
+  el.textContent = labels[status] || status;
+}
+
+async function loadState() {
+  // Step 1: show cached local state immediately (zero-latency boot)
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const loaded = JSON.parse(raw);
+      state = { ...defaultState(), ...loaded };
+      migrateState();
+      lastLocalPayload = raw;
+    }
+  } catch (e) {
+    // Ignore — use default state
+  }
+  // Step 2: artifact storage fallback (when running inside the Claude artifact
+  // where Firebase can't reach the internet). Only used if localStorage was empty.
+  if (!lastLocalPayload) {
+    try {
+      if (typeof window.storage !== 'undefined') {
+        const res = await window.storage.get(STORAGE_KEY);
+        if (res && res.value) {
+          const loaded = JSON.parse(res.value);
+          state = { ...defaultState(), ...loaded };
+          migrateState();
+        }
+      }
+    } catch (e) {}
+  }
+  // Step 3: load local UI prefs (which view, which match — independent per device)
+  loadUiPrefs();
+  resolveActiveMatch();
+  // Step 4: kick off Firebase (async — doesn't block initial render)
+  initFirebase();  // no await on purpose
+}
+
+function loadUiPrefs() {
+  try {
+    const raw = localStorage.getItem(UI_KEY);
+    if (raw) {
+      const loaded = JSON.parse(raw);
+      ui = { ...defaultUi(), ...loaded };
+    }
+  } catch (e) {
+    // Use default ui
+  }
+}
+
+function saveUiPrefs() {
+  try {
+    localStorage.setItem(UI_KEY, JSON.stringify(ui));
+  } catch (e) {}
+}
+
+// Make sure the ui points at a real comp/match. Called after state load
+// and after any remote update that could have deleted what we were looking at.
+function resolveActiveMatch() {
+  if (!state.disciplines) return;
+  // Fix activeDiscipline if it no longer exists
+  if (!state.disciplines[ui.activeDiscipline]) {
+    ui.activeDiscipline = (state.disciplineOrder && state.disciplineOrder[0]) ||
+                          Object.keys(state.disciplines)[0] || null;
+  }
+  const disc = getActiveDiscipline();
+  if (!disc) return;
+  // Fix activeTeam if it no longer exists in the active discipline
+  if (!disc.teams || !disc.teams[ui.activeTeam]) {
+    ui.activeTeam = (disc.teamOrder && disc.teamOrder[0]) ||
+                    Object.keys(disc.teams || {})[0] || null;
+  }
+  const team = getActiveTeam();
+  if (!team) return;
+  // Fix activeComp if it no longer exists in the active team
+  if (!team.competitions[ui.activeComp]) {
+    ui.activeComp = (team.compOrder && team.compOrder[0]) ||
+                    Object.keys(team.competitions)[0] || null;
+  }
+  const comp = team.competitions[ui.activeComp];
+  if (!comp) { ui.activeMatchId = null; return; }
+  // Fix activeMatchId if it no longer exists in the active comp
+  const exists = comp.matches.some(m => m.id === ui.activeMatchId);
+  if (!exists) {
+    ui.activeMatchId = comp.matches.length > 0 ? comp.matches[0].id : null;
+  }
+}
+
+function migrateState() {
+  // ── Forward-migrate the old flat format {competitions, compOrder} into the
+  //    new Disciplines → Équipes → Compétitions hierarchy. The historical data
+  //    is the outdoor (extérieur) 70m women's recurve team — never discard it.
+  if (state.competitions) {
+    state.disciplines = {
+      'Extérieur': {
+        teamOrder: ['Femme classique'],
+        teams: {
+          'Femme classique': {
+            archers: (state.archers && state.archers.length) ? state.archers : [...DEFAULT_ARCHERS],
+            gender: 'F',
+            bow: 'classique',
+            format: 'classique',
+            compOrder: state.compOrder || Object.keys(state.competitions),
+            competitions: state.competitions
+          }
+        }
+      }
+    };
+    state.disciplineOrder = ['Extérieur'];
+    delete state.competitions;
+    delete state.compOrder;
+    delete state.archers;
+  }
+  if (!state.disciplines) state.disciplines = {};
+  if (!state.disciplineOrder || !state.disciplineOrder.length) {
+    state.disciplineOrder = Object.keys(state.disciplines);
+  }
+
+  // ── Per-team / per-volley structural backfill ──
+  for (const dName in state.disciplines) {
+    const disc = state.disciplines[dName];
+    if (!disc.teams) disc.teams = {};
+    if (!disc.teamOrder || !disc.teamOrder.length) disc.teamOrder = Object.keys(disc.teams);
+    // Drop any team names left in teamOrder that no longer exist
+    disc.teamOrder = disc.teamOrder.filter(n => disc.teams[n]);
+    for (const k in disc.teams) if (!disc.teamOrder.includes(k)) disc.teamOrder.push(k);
+
+    for (const tName in disc.teams) {
+      const team = disc.teams[tName];
+      if (!team.archers || !team.archers.length) team.archers = [...DEFAULT_ARCHERS];
+      if (!team.format) team.format = 'classique';
+      // Backfill genre / arme from the team-type catalogue (or infer from name).
+      if (team.gender !== 'F' && team.gender !== 'M') {
+        const tt = teamTypeByName(tName);
+        team.gender = tt ? tt.gender : (/homme/i.test(tName) ? 'M' : 'F');
+      }
+      if (team.bow !== 'classique' && team.bow !== 'poulie') {
+        const tt = teamTypeByName(tName);
+        team.bow = tt ? tt.bow : (/poulie/i.test(tName) ? 'poulie' : 'classique');
+      }
+      if (!team.competitions) team.competitions = {};
+      if (!team.compOrder || !team.compOrder.length) team.compOrder = Object.keys(team.competitions);
+      team.compOrder = team.compOrder.filter(n => team.competitions[n]);
+      for (const k in team.competitions) if (!team.compOrder.includes(k)) team.compOrder.push(k);
+
+      for (const cName in team.competitions) {
+        const comp = team.competitions[cName];
+        if (!comp.matches) comp.matches = [];
+        for (const match of comp.matches) {
+          for (const v of match.volees) {
+            if (!v.subs) v.subs = [false, false, false, false];
+            if (!v.positions) v.positions = [[null,null],[null,null],[null,null],[null,null]];
+            if (typeof v.barrage !== 'boolean') v.barrage = false;
+          }
+          // Volley 5 (index 4) is always a barrage (shoot-off)
+          if (match.volees.length >= 5) match.volees[4].barrage = true;
+        }
+      }
+    }
+  }
+}
+
+async function saveState() {
+  if (READ_ONLY()) return;        // Spectateur: n'écrit nulle part
+  if (isApplyingRemote) return;   // Don't echo-save changes that came from Firestore
+
+  const payload = JSON.stringify(state);
+
+  // Always cache locally (fast, synchronous, works offline)
+  try { localStorage.setItem(STORAGE_KEY, payload); } catch (e) {}
+  // Artifact storage (Claude environment only)
+  try {
+    if (typeof window.storage !== 'undefined') {
+      await window.storage.set(STORAGE_KEY, payload);
+    }
+  } catch (e) {}
+
+  // Push to Firestore (the shared source of truth)
+  if (firestoreReady) {
+    pushStateToFirestore();  // fire-and-forget
+  } else {
+    setConnectionStatus('local');
+  }
+
+  showSaving();
+}
+
+function debouncedSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveState, 400);
+}
+
+function showSaving() {
+  const el = document.getElementById('saving-indicator');
+  if (el._toastLock) return;   // Don't override a visible toast
+  el.textContent = 'sauvegardé';
+  el.classList.remove('toast');
+  el.classList.add('visible');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('visible'), 900);
+}
+
+function showToast(msg, ms = 3200) {
+  const el = document.getElementById('saving-indicator');
+  el.textContent = msg;
+  el.classList.add('visible', 'toast');
+  el._toastLock = true;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => {
+    el.classList.remove('visible', 'toast');
+    el._toastLock = false;
+    el.textContent = 'sauvegardé';
+  }, ms);
+}
+
+// ───────────────────────────────────────────────────────────
+// Arrow value logic
+// ───────────────────────────────────────────────────────────
+function arrowValue(a) {
+  if (a === null || a === undefined || a === '') return null;
+  const s = String(a).trim().toUpperCase();
+  if (s === 'X') return 10;
+  if (s === 'M') return 0;
+  const n = Number(s);
+  return isNaN(n) ? null : n;
+}
+function arrowIsSet(a) {
+  return a !== null && a !== undefined && a !== '';
+}
+function arrowCategory(a) {
+  if (!arrowIsSet(a)) return null;
+  const s = String(a).trim().toUpperCase();
+  if (s === 'X') return 'x';
+  if (s === 'M') return 'm';
+  const n = Number(s);
+  if (isNaN(n)) return null;
+  if (n === 10) return '10';
+  if (n === 9) return '9';
+  if (n >= 7) return 'r';  // red
+  if (n >= 5) return 'b';  // blue
+  if (n >= 3) return 'k';  // black
+  if (n >= 1) return 'w';  // white
+  return 'm';
+}
+function arrowColorGroup(a) {
+  // For color distribution (Jaune/Rouge/Bleu/Noir/Blanc/Brosse)
+  if (!arrowIsSet(a)) return null;
+  const cat = arrowCategory(a);
+  if (cat === 'x' || cat === '10' || cat === '9') return 'Jaune';
+  if (cat === 'r') return 'Rouge';
+  if (cat === 'b') return 'Bleu';
+  if (cat === 'k') return 'Noir';
+  if (cat === 'w') return 'Blanc';
+  if (cat === 'm') return 'Brosse';
+  return null;
+}
+
+function volleyTotal(v) {
+  let t = 0;
+  const maxI = numArrowSlots(v);
+  for (const pair of v.arrows) {
+    for (let i = 0; i < maxI; i++) {
+      const val = arrowValue(pair[i]);
+      if (val !== null) t += val;
+    }
+  }
+  return t;
+}
+function volleyArrowCount(v) {
+  let c = 0;
+  const maxI = numArrowSlots(v);
+  for (const pair of v.arrows) {
+    for (let i = 0; i < maxI; i++) {
+      if (arrowIsSet(pair[i])) c++;
+    }
+  }
+  return c;
+}
+function volleyHasData(v) {
+  return volleyArrowCount(v) > 0 || v.adv !== null;
+}
+
+function archerStats(match, archerIdx) {
+  let sum = 0, count = 0;
+  for (const v of match.volees) {
+    const maxI = numArrowSlots(v);
+    const pair = v.arrows[archerIdx];
+    for (let i = 0; i < maxI; i++) {
+      const val = arrowValue(pair[i]);
+      if (val !== null) { sum += val; count++; }
+    }
+  }
+  return { total: sum, count, avg: count > 0 ? sum / count : null };
+}
+
+function matchSetPoints(match) {
+  let our = 0, their = 0;
+  for (const v of match.volees) {
+    const nArrows = volleyArrowCount(v);
+    if (nArrows === 0) continue;
+    if (v.adv === null || v.adv === '') continue;
+    const ours = volleyTotal(v);
+    const theirs = Number(v.adv);
+    if (isNaN(theirs)) continue;
+    if (ours > theirs) our += 2;
+    else if (ours < theirs) their += 2;
+    else { our += 1; their += 1; }
+  }
+  return { our, their };
+}
+
+function matchTotal(match) {
+  let our = 0, their = 0;
+  for (const v of match.volees) {
+    our += volleyTotal(v);
+    const t = Number(v.adv);
+    if (!isNaN(t) && v.adv !== null && v.adv !== '') their += t;
+  }
+  return { our, their };
+}
+
+// Cumul des points sur les volées de score (barrage exclu). Pour le poulie c'est
+// le score officiel : 4 volées × 60 = 240 max. Côté adverse = somme des « Adv. ».
+function matchScoringTotal(match) {
+  let our = 0, their = 0;
+  for (const v of match.volees) {
+    if (v.barrage) continue;
+    our += volleyTotal(v);
+    const t = Number(v.adv);
+    if (!isNaN(t) && v.adv !== null && v.adv !== '') their += t;
+  }
+  return { our, their };
+}
+
+// Moyenne de points par volée (barrage exclu) sur une liste de matchs, pour
+// l'équipe et pour l'adversaire. Une volée n'est comptée, de chaque côté, que
+// si elle contient des données de ce côté (flèches saisies / score adverse).
+// → max théorique 60 (3 tireurs × 2 flèches × 10).
+function volleyAverages(matches) {
+  let ourSum = 0, ourVolleys = 0;
+  let advSum = 0, advVolleys = 0;
+  for (const m of matches) {
+    for (const v of m.volees) {
+      if (v.barrage) continue;
+      if (volleyArrowCount(v) > 0) { ourSum += volleyTotal(v); ourVolleys++; }
+      const t = Number(v.adv);
+      if (v.adv !== null && v.adv !== '' && !isNaN(t)) { advSum += t; advVolleys++; }
+    }
+  }
+  return {
+    our: ourVolleys > 0 ? ourSum / ourVolleys : null,
+    their: advVolleys > 0 ? advSum / advVolleys : null,
+    ourVolleys, advVolleys
+  };
+}
+
+// Score de la volée de barrage (1 flèche/archer) — départage en cas d'égalité.
+function matchBarrageScore(match) {
+  let our = 0, their = 0, hasOur = false, hasTheir = false;
+  for (const v of match.volees) {
+    if (!v.barrage) continue;
+    if (volleyArrowCount(v) > 0) { our += volleyTotal(v); hasOur = true; }
+    const t = Number(v.adv);
+    if (!isNaN(t) && v.adv !== null && v.adv !== '') { their += t; hasTheir = true; }
+  }
+  return { our, their, has: hasOur && hasTheir };
+}
+
+// Résultat « classique » : système de sets (2 pts par volée gagnée).
+function matchResultClassique(match) {
+  const sp = matchSetPoints(match);
+  const hasData = match.volees.some(v => volleyHasData(v) && v.adv !== null && v.adv !== '');
+  if (!hasData) return { status: 'pending', ...sp };
+  if (sp.our > sp.their) return { status: 'win', ...sp };
+  if (sp.our < sp.their) return { status: 'loss', ...sp };
+  return { status: 'tie', ...sp };
+}
+
+// Résultat « poulie » : cumul de points (/240). Le plus haut total gagne ;
+// barrage (1 flèche/archer) seulement si égalité de points avec l'adversaire.
+function matchResultPoulie(match) {
+  const pts = matchScoringTotal(match);
+  const out = { our: pts.our, their: pts.their };
+  const hasData = match.volees.some(v => !v.barrage && volleyHasData(v) && v.adv !== null && v.adv !== '');
+  if (!hasData) return { status: 'pending', ...out };
+  if (pts.our > pts.their) return { status: 'win', ...out };
+  if (pts.our < pts.their) return { status: 'loss', ...out };
+  // Égalité de points → départage au barrage si renseigné.
+  const b = matchBarrageScore(match);
+  if (b.has) {
+    if (b.our > b.their) return { status: 'win', ...out };
+    if (b.our < b.their) return { status: 'loss', ...out };
+  }
+  return { status: 'tie', ...out };
+}
+
+// Dispatch selon l'arme de l'équipe active (poulie = cumul, sinon sets).
+function matchResult(match) {
+  return bowForTeam(getActiveTeam(), ui.activeTeam) === 'poulie'
+    ? matchResultPoulie(match)
+    : matchResultClassique(match);
+}
+
+// ───────────────────────────────────────────────────────────
+// Rendering
+// ───────────────────────────────────────────────────────────
+function getActiveMatch() {
+  const comp = getComps()[ui.activeComp];
+  if (!comp) return null;
+  return comp.matches.find(m => m.id === ui.activeMatchId) || comp.matches[0] || null;
+}
+
+// ─── Disciplines (top-level tabs) ───────────────────────────────
+function renderDisciplineTabs() {
+  const container = document.getElementById('disc-tabs');
+  if (!container) return;
+  container.innerHTML = '';
+  for (const name of (state.disciplineOrder || [])) {
+    if (!state.disciplines[name]) continue;
+    const btn = document.createElement('button');
+    btn.className = 'disc-tab' + (name === ui.activeDiscipline ? ' active' : '');
+    btn.textContent = name;
+    btn.onclick = () => switchDiscipline(name);
+    if (!READ_ONLY()) {
+      btn.oncontextmenu = (e) => { e.preventDefault(); openRenameDisciplineModal(name); };
+    }
+    container.appendChild(btn);
+  }
+  if (!READ_ONLY()) {
+    const add = document.createElement('button');
+    add.className = 'disc-tab disc-tab-add';
+    add.textContent = '+ Discipline';
+    add.onclick = openAddDisciplineModal;
+    container.appendChild(add);
+  }
+}
+
+function switchDiscipline(name) {
+  if (name === ui.activeDiscipline) return;
+  ui.activeDiscipline = name;
+  const disc = state.disciplines[name];
+  ui.activeTeam = (disc && disc.teamOrder && disc.teamOrder[0]) ||
+                  (disc && Object.keys(disc.teams || {})[0]) || null;
+  resolveActiveMatch();
+  render();
+  saveUiPrefs();
+}
+
+// ─── Teams (second-level chips, scoped to active discipline) ────
+function renderTeamTabs() {
+  const container = document.getElementById('team-tabs');
+  if (!container) return;
+  container.innerHTML = '';
+  const disc = getActiveDiscipline();
+  if (!disc) return;
+  for (const name of (disc.teamOrder || [])) {
+    const team = disc.teams[name];
+    if (!team) continue;
+    const btn = document.createElement('button');
+    btn.className = 'team-chip' + (name === ui.activeTeam ? ' active' : '');
+    const editIcon = (!READ_ONLY() && name === ui.activeTeam)
+      ? ` <span class="edit" title="Modifier l'équipe (nom & archers)">✎</span>` : '';
+    btn.innerHTML = `<span class="tn">${name}</span>${editIcon}`;
+    btn.onclick = (e) => {
+      if (e.target.classList.contains('edit')) { openEditTeamModal(name); return; }
+      switchTeam(name);
+    };
+    if (!READ_ONLY()) {
+      btn.oncontextmenu = (e) => { e.preventDefault(); openEditTeamModal(name); };
+    }
+    container.appendChild(btn);
+  }
+  if (!READ_ONLY()) {
+    const add = document.createElement('button');
+    add.className = 'team-chip team-chip-add';
+    add.textContent = '+ Équipe';
+    add.onclick = openAddTeamModal;
+    container.appendChild(add);
+  }
+}
+
+function switchTeam(name) {
+  if (name === ui.activeTeam) return;
+  ui.activeTeam = name;
+  const team = getActiveDiscipline().teams[name];
+  ui.activeComp = (team && team.compOrder && team.compOrder[0]) ||
+                  (team && Object.keys(team.competitions || {})[0]) || null;
+  resolveActiveMatch();
+  render();
+  saveUiPrefs();
+}
+
+function renderCompTabs() {
+  const container = document.getElementById('comp-tabs');
+  container.innerHTML = '';
+  for (const name of getCompOrder()) {
+    const comp = getComps()[name];
+    if (!comp) continue;
+    const btn = document.createElement('button');
+    btn.className = 'comp-tab' + (name === ui.activeComp ? ' active' : '');
+    btn.innerHTML = `${name}<span class="count">${comp.matches.length}</span>`;
+    btn.onclick = () => {
+      ui.activeComp = name;
+      const firstMatch = comp.matches[0];
+      ui.activeMatchId = firstMatch ? firstMatch.id : null;
+      render();
+      saveUiPrefs();
+    };
+    if (!READ_ONLY()) {
+      btn.oncontextmenu = (e) => {
+        e.preventDefault();
+        openRenameCompModal(name);
+      };
+    }
+    container.appendChild(btn);
+  }
+  if (!READ_ONLY()) {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'comp-tab comp-tab-add';
+    addBtn.textContent = '+ Ajouter';
+    addBtn.onclick = openAddCompModal;
+    container.appendChild(addBtn);
+  }
+}
+
+function renderMatchesList() {
+  const container = document.getElementById('matches-list');
+  container.innerHTML = '';
+  const comp = getComps()[ui.activeComp];
+  if (!comp) return;
+  comp.matches.forEach((m, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'match-item' + (m.id === ui.activeMatchId ? ' active' : '');
+    const res = matchResult(m);
+    let badge = '';
+    if (res.status === 'win') badge = `<span class="badge win">${res.our}-${res.their}</span>`;
+    else if (res.status === 'loss') badge = `<span class="badge loss">${res.our}-${res.their}</span>`;
+    else if (res.status === 'tie') badge = `<span class="badge tie">${res.our}-${res.their}</span>`;
+    btn.innerHTML = `
+      <span class="num">${idx + 1}</span>
+      <span class="name">${m.opponent || '<i>Sans nom</i>'}</span>
+      ${badge}`;
+    btn.onclick = () => {
+      ui.activeMatchId = m.id;
+      ui.view = 'match';
+      render();
+      saveUiPrefs();
+    };
+    container.appendChild(btn);
+  });
+}
+
+function getArrowClass(a) {
+  const cat = arrowCategory(a);
+  if (!cat) return '';
+  return 'filled-' + cat;
+}
+
+function renderMatchView() {
+  const container = document.getElementById('match-view');
+  const match = getActiveMatch();
+  if (!match) {
+    container.innerHTML = `
+      <div class="match-content">
+        <div class="empty-state">
+          <div class="display">Aucun match</div>
+          <div class="hint">Ajoute un match dans la colonne de gauche pour commencer.</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const comp = getComps()[ui.activeComp];
+  const archers = getArchers();
+  const g = genderForTeam(getActiveTeam(), ui.activeTeam);
+  const bow = bowForTeam(getActiveTeam(), ui.activeTeam);
+  const isPoulie = bow === 'poulie';
+  const fullVolleyTip = '3 ' + nArcher(g, true) + ' ont déjà tiré cette volée';
+  const matchIdx = comp.matches.findIndex(m => m.id === match.id);
+  const res = matchResult(match);
+  const totals = matchTotal(match);
+  const barrage = matchBarrageScore(match);
+  let poulieRunning = 0;   // running cumulative team score for the poulie format
+
+  let resStatusClass = res.status;
+  let resStatusText = {
+    win: 'Victoire', loss: 'Défaite', tie: 'Égalité', pending: 'En cours'
+  }[res.status];
+
+  // Build scoresheet rows
+  let rowsHtml = '';
+  match.volees.forEach((v, vi) => {
+    const total = volleyTotal(v);
+    const hasArrows = volleyArrowCount(v) > 0;
+    const advNum = v.adv === null || v.adv === '' ? null : Number(v.adv);
+    let setCellHtml = '<span class="zero">—</span>';
+    if (isPoulie) {
+      // Poulie : pas de sets. La colonne montre le cumul courant de l'équipe
+      // (barrage exclu du cumul, marqué « = » comme départage).
+      if (v.barrage) {
+        setCellHtml = hasArrows ? `<span class="setpt-pair"><span class="our tie-cell">=${total}</span></span>` : '<span class="zero">—</span>';
+      } else {
+        if (hasArrows) poulieRunning += total;
+        setCellHtml = hasArrows ? `<span class="poulie-cumul">${poulieRunning}</span>` : '<span class="zero">—</span>';
+      }
+    } else if (hasArrows && advNum !== null && !isNaN(advNum)) {
+      if (total > advNum) setCellHtml = `<span class="setpt-pair"><span class="our win-cell">2</span><span class="dash">·</span><span class="their zero">0</span></span>`;
+      else if (total < advNum) setCellHtml = `<span class="setpt-pair"><span class="our zero">0</span><span class="dash">·</span><span class="their win-cell">2</span></span>`;
+      else setCellHtml = `<span class="setpt-pair"><span class="our tie-cell">1</span><span class="dash">·</span><span class="their tie-cell">1</span></span>`;
+    }
+
+    const subs = v.subs || [false, false, false, false];
+    const isBarrage = !!v.barrage;
+    let cellsHtml = '';
+    for (let ai = 0; ai < 4; ai++) {
+      const archerCanShoot = canArcherShoot(v, ai);
+      if (subs[ai]) {
+        cellsHtml += `
+          <td class="arrow-cell sub-cell"><div class="sub-dash">—</div></td>
+          <td class="arrow-cell second sub-cell"><div class="sub-dash">—</div></td>`;
+      } else {
+        const [a1, a2] = v.arrows[ai];
+        const blockedCls = !archerCanShoot ? ' blocked' : '';
+        // First arrow — always editable (via target) unless archer is blocked
+        cellsHtml += `
+          <td class="arrow-cell">
+            <input class="arrow-input ${getArrowClass(a1)}${blockedCls}" type="text" maxlength="2"
+                   data-v="${vi}" data-a="${ai}" data-i="0"
+                   value="${a1 === null ? '' : a1}" readonly autocomplete="off"
+                   title="${archerCanShoot ? 'Clique pour saisir avec la cible' : fullVolleyTip}">
+          </td>`;
+        // Second arrow — disabled in barrage volleys
+        if (isBarrage) {
+          cellsHtml += `<td class="arrow-cell second sub-cell"><div class="sub-dash barrage-dash">—</div></td>`;
+        } else {
+          cellsHtml += `
+            <td class="arrow-cell second">
+              <input class="arrow-input ${getArrowClass(a2)}${blockedCls}" type="text" maxlength="2"
+                     data-v="${vi}" data-a="${ai}" data-i="1"
+                     value="${a2 === null ? '' : a2}" readonly autocomplete="off"
+                     title="${archerCanShoot ? 'Clique pour saisir avec la cible' : fullVolleyTip}">
+            </td>`;
+        }
+      }
+      if (ai < 3) cellsHtml += '<td class="sep"></td>';
+    }
+
+    const subIdx = subs.findIndex(s => s);
+    const subBadge = subIdx >= 0 ? `<span class="sub-badge" title="${nNonShooter(g, true)}">-${shortArcherName(archers[subIdx])}</span>` : '';
+    const barrageBadge = isBarrage ? `<span class="sub-badge barrage-badge" title="Barrage · 1 flèche par ${nArcher(g, false)}">BARRAGE</span>` : '';
+    const popoverHtml = openPopoverV === vi ? `
+      <div class="sub-popover" data-v="${vi}">
+        <div class="popover-title">Qui ne tire pas cette volée ?</div>
+        <div class="popover-chips">
+          ${archers.map((n, a) => `
+            <button class="sub-chip${subs[a] ? ' active' : ''}" data-sub-v="${vi}" data-sub-a="${a}">${n}</button>
+          `).join('')}
+          <button class="sub-chip clear${subIdx < 0 ? ' active' : ''}" data-sub-v="${vi}" data-sub-a="-1">${nAllShoot(g)}</button>
+        </div>
+      </div>
+    ` : '';
+
+    rowsHtml += `
+      <tr class="volley-row${isBarrage ? ' volley-barrage' : ''}">
+        <td class="volley-num">
+          <button class="volley-num-btn" data-pop-v="${vi}" title="Définir la ${nNonShooter(g)}">V${vi + 1}${barrageBadge}${subBadge}</button>
+          ${popoverHtml}
+        </td>
+        ${cellsHtml}
+        <td class="volley-total">${hasArrows ? total : ''}</td>
+        <td class="adv-cell">
+          <input class="adv-input" type="text" inputmode="numeric" maxlength="3"
+                 data-v="${vi}" data-adv="1"
+                 value="${v.adv === null ? '' : v.adv}" autocomplete="off">
+        </td>
+        <td class="setpts">${setCellHtml}</td>
+      </tr>`;
+  });
+
+  // Archer totals row
+  let archerTotalsHtml = '';
+  for (let ai = 0; ai < 4; ai++) {
+    const s = archerStats(match, ai);
+    archerTotalsHtml += `
+      <td class="arrow-cell" colspan="2" style="text-align:center; padding-top: 0.8rem; border-top: 2px solid var(--ink);">
+        <div class="archer-total">${s.total || '—'}</div>
+        <div class="archer-avg">${s.avg !== null ? s.avg.toFixed(1) : ''}/f · ${s.count}f</div>
+      </td>`;
+    if (ai < 3) archerTotalsHtml += '<td class="sep" style="border-top: 2px solid var(--ink);"></td>';
+  }
+
+  container.innerHTML = `
+    <div class="match-content">
+      <div class="match-header">
+        <div class="match-meta">
+          <div class="match-number">${ui.activeDiscipline} · ${ui.activeTeam} · Match ${matchIdx + 1} · ${ui.activeComp}</div>
+          <div class="match-title">
+            <span class="team-label">${ui.activeTeam}</span>
+            <span class="vs">vs.</span>
+            <input class="opponent-input" id="opponent-input" value="${match.opponent.replace(/"/g, '&quot;')}" placeholder="Adversaire">
+            <button class="btn-icon" id="btn-delete-match" title="Supprimer ce match">✕</button>
+          </div>
+        </div>
+        <div class="match-result">
+          <div class="result-sets">
+            <span class="our">${res.our}</span>
+            <span class="dash">·</span>
+            <span class="their">${res.their}</span>
+          </div>
+          <div class="result-status ${resStatusClass}">${resStatusText}</div>
+          ${isPoulie
+            ? (hasArrowData(match) ? `<div style="font-family:'JetBrains Mono', monospace; font-size:0.72rem; color:var(--ink-mute); margin-top:0.4rem;">${res.our} · ${res.their} pts / 240${barrage.has ? ` · barrage ${barrage.our}·${barrage.their}` : ''}</div>` : '')
+            : (hasArrowData(match) ? `<div style="font-family:'JetBrains Mono', monospace; font-size:0.72rem; color:var(--ink-mute); margin-top:0.4rem;">${totals.our} · ${totals.their} pts</div>` : '')}
+        </div>
+      </div>
+
+      <div class="scoresheet-wrap">
+        <table class="scoresheet">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="archer-th" colspan="2" data-archer="0">${archers[0] || ''}</th>
+              <th class="sep"></th>
+              <th class="archer-th" colspan="2" data-archer="1">${archers[1] || ''}</th>
+              <th class="sep"></th>
+              <th class="archer-th" colspan="2" data-archer="2">${archers[2] || ''}</th>
+              <th class="sep"></th>
+              <th class="archer-th" colspan="2" data-archer="3">${archers[3] || ''}</th>
+              <th>Total</th>
+              <th>Adv.</th>
+              <th>${isPoulie ? 'Cumul' : 'Set'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+            <tr class="totals-row">
+              <td></td>
+              ${archerTotalsHtml}
+              <td class="volley-total" style="padding-top: 0.8rem; border-top: 2px solid var(--ink);">${totals.our || '—'}</td>
+              <td class="volley-total tiny" style="padding-top: 0.8rem; border-top: 2px solid var(--ink);">${totals.their || '—'}</td>
+              <td style="padding-top: 0.8rem; border-top: 2px solid var(--ink);"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="input-hint">
+        Clique sur une case vide pour saisir une flèche. Sur mobile, fais un <strong>appui long</strong> pour modifier une flèche déjà saisie. Chaque ${nArcher(g, false)} a sa couleur sur la cible. <kbd>V1</kbd>–<kbd>V5</kbd> pour désigner une ${nNonShooter(g)}. <kbd>V5</kbd> = barrage : 1 flèche par ${nArcher(g, false)}.${isPoulie ? ` Poulie : cumul de points (4 volées, max 240) ; le barrage ne départage qu'en cas d'égalité.` : ''}
+      </div>
+
+      <div class="match-stats">
+        ${archers.map((name, ai) => {
+          const s = archerStats(match, ai);
+          const scoreCounts = countArcherScores(match, ai);
+          return `
+            <div class="archer-card">
+              <div class="name">${name}</div>
+              <div class="stats-row"><span>Moyenne</span><strong>${s.avg !== null ? s.avg.toFixed(2) : '—'}</strong></div>
+              <div class="stats-row"><span>Total</span><strong>${s.total || '—'}</strong></div>
+              <div class="stats-row"><span>Flèches</span><strong>${s.count}</strong></div>
+              <div class="stats-row"><span>X / 10 / 9</span><strong>${scoreCounts.x} · ${scoreCounts['10']} · ${scoreCounts['9']}</strong></div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <button class="fab-target" id="fab-target" title="Saisie tactile (cible)" aria-label="Ouvrir la cible tactile">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="6.5" stroke="currentColor" stroke-width="1.3"/>
+        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.2"/>
+        <circle cx="12" cy="12" r="0.8" fill="currentColor"/>
+      </svg>
+    </button>
+  `;
+
+  attachScoresheetHandlers();
+
+  // FAB: opens target modal starting at next empty slot
+  const fab = document.getElementById('fab-target');
+  if (fab) {
+    if (READ_ONLY()) {
+      fab.style.display = 'none';
+    } else {
+      fab.style.display = '';
+      fab.onclick = (e) => {
+        e.stopPropagation();
+        openTargetModal();
+      };
+    }
+  }
+}
+
+function hasArrowData(match) {
+  return match.volees.some(v => volleyArrowCount(v) > 0);
+}
+
+function countArcherScores(match, archerIdx) {
+  const c = { x: 0, '10': 0, '9': 0, '8': 0, '7': 0, '6': 0, '5': 0, '4': 0, '3': 0, '2': 0, '1': 0, m: 0 };
+  for (const v of match.volees) {
+    const maxI = numArrowSlots(v);
+    const pair = v.arrows[archerIdx];
+    for (let i = 0; i < maxI; i++) {
+      const a = pair[i];
+      const cat = arrowCategory(a);
+      if (cat === 'x') c.x++;
+      else if (cat === '10') c['10']++;
+      else if (cat === '9') c['9']++;
+      else if (cat === 'r') {
+        const n = Number(a);
+        if (n === 8) c['8']++; else if (n === 7) c['7']++;
+      }
+      else if (cat === 'b') {
+        const n = Number(a);
+        if (n === 6) c['6']++; else if (n === 5) c['5']++;
+      }
+      else if (cat === 'k') {
+        const n = Number(a);
+        if (n === 4) c['4']++; else if (n === 3) c['3']++;
+      }
+      else if (cat === 'w') {
+        const n = Number(a);
+        if (n === 2) c['2']++; else if (n === 1) c['1']++;
+      }
+      else if (cat === 'm') c.m++;
+    }
+  }
+  return c;
+}
+
+function countArcherColors(match, archerIdx) {
+  const c = { Jaune: 0, Rouge: 0, Bleu: 0, Noir: 0, Blanc: 0, Brosse: 0 };
+  for (const v of match.volees) {
+    const maxI = numArrowSlots(v);
+    const pair = v.arrows[archerIdx];
+    for (let i = 0; i < maxI; i++) {
+      const g = arrowColorGroup(pair[i]);
+      if (g) c[g]++;
+    }
+  }
+  return c;
+}
+
+// ───────────────────────────────────────────────────────────
+// Scoresheet handlers (all input is via the target modal)
+// ───────────────────────────────────────────────────────────
+function attachScoresheetHandlers() {
+  const match = getActiveMatch();
+  if (!match) return;
+
+  // Opponent name
+  const opInput = document.getElementById('opponent-input');
+  if (opInput) {
+    if (READ_ONLY()) {
+      opInput.readOnly = true;
+      opInput.style.cursor = 'default';
+    } else {
+      opInput.addEventListener('input', (e) => {
+        match.opponent = e.target.value;
+        renderMatchesList();
+        debouncedSave();
+      });
+    }
+  }
+
+  // Delete match — hidden in spectator mode
+  const delBtn = document.getElementById('btn-delete-match');
+  if (delBtn) {
+    if (READ_ONLY()) {
+      delBtn.style.display = 'none';
+    } else {
+      delBtn.onclick = () => {
+        if (!confirm(`Supprimer le match contre "${match.opponent || 'Sans nom'}" ?`)) return;
+        const comp = getComps()[ui.activeComp];
+        const idx = comp.matches.findIndex(m => m.id === match.id);
+        comp.matches.splice(idx, 1);
+        ui.activeMatchId = comp.matches[idx] ? comp.matches[idx].id : (comp.matches[idx - 1] ? comp.matches[idx - 1].id : null);
+        render();
+        saveState();
+        saveUiPrefs();
+      };
+    }
+  }
+
+  // Arrow inputs — readonly. Tap an empty slot to enter a value. A slot that
+  // already has a value requires a LONG PRESS on touch screens to edit it, so
+  // a stray tap can't overwrite an arrow already recorded. On desktop a normal
+  // click still works (accidental clicks aren't an issue with a mouse).
+  document.querySelectorAll('.arrow-input').forEach(inp => {
+    const vi = Number(inp.dataset.v);
+    const ai = Number(inp.dataset.a);
+    const ii = Number(inp.dataset.i);
+
+    const slotFilled = () => {
+      const v = match.volees[vi];
+      return !!(v && v.arrows[ai] && arrowIsSet(v.arrows[ai][ii]));
+    };
+
+    const tryOpen = () => {
+      if (READ_ONLY()) { showToast('Mode spectateur · clique 🔒 pour passer en mode coach'); return; }
+      // Block if this archer can't shoot this volley (3-archer rule)
+      if (!canArcherShoot(match.volees[vi], ai)) {
+        const g = activeGender();
+        showToast('3 ' + nArcher(g, true) + ' ont déjà tiré cette volée. Marque une ' + nNonShooter(g) + ' (clic sur V' + (vi + 1) + ') ou efface une flèche d\'abord.');
+        return;
+      }
+      inp.blur();
+      openTargetModal(vi, ai, ii);
+    };
+
+    let lpTimer = null;
+    let touchHandled = false;   // true when the touch path already decided what to do
+    const LONG_PRESS_MS = 450;
+    const clearLP = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
+
+    inp.addEventListener('touchstart', () => {
+      touchHandled = false;
+      if (!slotFilled()) return;   // empty slot → let the click open it normally
+      // Filled slot → only a long press should open the editor.
+      lpTimer = setTimeout(() => {
+        lpTimer = null;
+        touchHandled = true;       // long press → open, and block the trailing click
+        try { if (navigator.vibrate) navigator.vibrate(15); } catch (e) {}
+        tryOpen();
+      }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    inp.addEventListener('touchmove', clearLP, { passive: true });
+    inp.addEventListener('touchcancel', clearLP);
+    inp.addEventListener('touchend', (e) => {
+      if (lpTimer) {
+        // Released before the long press completed → short tap on a filled slot.
+        // Don't edit; just hint how to do it.
+        clearLP();
+        touchHandled = true;
+        e.preventDefault();        // suppress the synthetic click
+        if (!READ_ONLY() && slotFilled()) showToast('Appui long pour modifier une flèche déjà saisie');
+      }
+    });
+
+    inp.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (touchHandled) { touchHandled = false; return; }  // handled by the touch path
+      tryOpen();   // mouse/desktop, or a tap on an empty slot
+    });
+    // Prevent keyboard from opening at all on focus (iOS still sometimes tries)
+    inp.addEventListener('focus', () => inp.blur());
+  });
+
+  // Adversary inputs
+  const advInputs = document.querySelectorAll('.adv-input');
+  advInputs.forEach(inp => {
+    if (READ_ONLY()) {
+      inp.readOnly = true;
+      inp.style.cursor = 'default';
+      return;
+    }
+    inp.addEventListener('input', (e) => {
+      const v = e.target.value.trim();
+      const vi = Number(inp.dataset.v);
+      // Score adverse plafonné au max réel d'une volée : 3 archers tireurs ×
+      // flèches/archer × 10 → 60 pour une volée de score, 30 pour le barrage.
+      const maxAdv = 3 * numArrowSlots(match.volees[vi]) * 10;
+      if (v === '') {
+        match.volees[vi].adv = null;
+      } else {
+        const n = Number(v);
+        if (!isNaN(n) && n >= 0 && n <= maxAdv) {
+          match.volees[vi].adv = v;
+        } else {
+          e.target.value = match.volees[vi].adv || '';
+          if (!isNaN(n) && n > maxAdv) showToast(`Score adverse max ${maxAdv} sur cette volée`);
+          return;
+        }
+      }
+      updateVolleyDisplay(vi);
+      updateMatchHeader();
+      renderMatchesList();
+      debouncedSave();
+    });
+    inp.addEventListener('focus', () => inp.select());
+  });
+
+  // Volley-num buttons (open sub popover) — disabled in spectator mode
+  document.querySelectorAll('.volley-num-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (READ_ONLY()) { showToast('Mode spectateur · clique 🔒 pour passer en mode coach'); return; }
+      const vi = Number(btn.dataset.popV);
+      openPopoverV = openPopoverV === vi ? null : vi;
+      renderMatchView();
+    });
+  });
+
+  // Sub chips inside popover
+  document.querySelectorAll('.sub-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const vi = Number(chip.dataset.subV);
+      const ai = Number(chip.dataset.subA);
+      setSubstitute(vi, ai);
+    });
+  });
+}
+
+function setSubstitute(vi, ai) {
+  const match = getActiveMatch();
+  if (!match) return;
+  const v = match.volees[vi];
+  if (!v.subs) v.subs = [false, false, false, false];
+  if (ai === -1) {
+    // Clear all subs
+    v.subs = [false, false, false, false];
+  } else {
+    // Toggle: if already this archer, clear; else set only this one
+    const wasActive = v.subs[ai];
+    v.subs = [false, false, false, false];
+    if (!wasActive) {
+      v.subs[ai] = true;
+      // Clear any arrows for the substituted archer (they didn't shoot)
+      v.arrows[ai] = [null, null];
+    }
+  }
+  openPopoverV = null;
+  renderMatchView();
+  debouncedSave();
+}
+
+// ───────────────────────────────────────────────────────────
+// Target input modal (tap-the-target scoring)
+// ───────────────────────────────────────────────────────────
+function firstEmptyArrowSlot(match, startV = 0, startA = 0, startI = 0) {
+  for (let vi = startV; vi < match.volees.length; vi++) {
+    const v = match.volees[vi];
+    const maxI = numArrowSlots(v);
+    for (let ai = (vi === startV ? startA : 0); ai < 4; ai++) {
+      if (!canArcherShoot(v, ai)) continue;
+      for (let ii = (vi === startV && ai === startA ? startI : 0); ii < maxI; ii++) {
+        if (!arrowIsSet(v.arrows[ai][ii])) return { v: vi, a: ai, i: ii };
+      }
+    }
+  }
+  return null;
+}
+
+function openTargetModal(startV, startA, startI) {
+  if (READ_ONLY()) { showToast('Mode spectateur · clique 🔒 pour passer en mode coach'); return; }
+  const match = getActiveMatch();
+  if (!match) return;
+
+  // If no explicit start, find first empty slot
+  let pos;
+  if (startV === undefined) {
+    pos = firstEmptyArrowSlot(match);
+    if (!pos) {
+      // No empty slot — start at V1 first archer
+      pos = { v: 0, a: 0, i: 0 };
+      // Skip subs
+      const subs = match.volees[0].subs || [false, false, false, false];
+      while (pos.a < 4 && subs[pos.a]) pos.a++;
+      if (pos.a >= 4) { pos = { v: 0, a: 0, i: 0 }; }
+    }
+  } else {
+    pos = { v: startV, a: startA, i: startI };
+  }
+
+  targetState = pos;
+
+  // Reconstruct the visual trail from persisted positions in this match,
+  // but exclude the slot we're about to edit (so the user sees a clean slate for it)
+  targetHistory = [];
+  for (let vi = 0; vi < match.volees.length; vi++) {
+    const volee = match.volees[vi];
+    const positions = volee.positions || [];
+    for (let ai = 0; ai < 4; ai++) {
+      const pair = positions[ai] || [null, null];
+      for (let ii = 0; ii < 2; ii++) {
+        // Skip the position we're editing
+        if (vi === pos.v && ai === pos.a && ii === pos.i) continue;
+        const pt = pair[ii];
+        const val = volee.arrows[ai] ? volee.arrows[ai][ii] : null;
+        if (pt && val && val !== 'M') {
+          targetHistory.push({
+            x: pt.x, y: pt.y,
+            color: SEG_COLORS[ai % SEG_COLORS.length],
+            v: vi, a: ai, i: ii
+          });
+        }
+      }
+    }
+  }
+
+  renderTargetModal();
+}
+
+function closeTargetModal() {
+  targetState = null;
+  targetHistory = [];
+  const overlay = document.getElementById('target-modal-overlay');
+  if (overlay) overlay.remove();
+}
+
+// Internal: remove only the DOM overlay, keep targetState and targetHistory alive
+function removeTargetModalDom() {
+  const overlay = document.getElementById('target-modal-overlay');
+  if (overlay) overlay.remove();
+}
+
+// Re-render the match view (scoresheet, totals, stats) while the target modal stays open.
+// Safe because the modal overlay is a child of document.body, not of #match-view.
+function refreshMatchViewInBackground() {
+  if (ui.view !== 'match') return;
+  renderMatchView();
+}
+
+function advanceTargetPos() {
+  const match = getActiveMatch();
+  if (!match || !targetState) return false;
+  const { v, a, i } = targetState;
+  const curMaxI = numArrowSlots(match.volees[v]);
+
+  // Try next arrow in same archer's pair (only if this volley has a 2nd slot)
+  if (i === 0 && curMaxI > 1) {
+    targetState = { v, a, i: 1 };
+    return true;
+  }
+  // Next archer (skipping anyone who can't shoot this volley)
+  for (let na = a + 1; na < 4; na++) {
+    if (!canArcherShoot(match.volees[v], na)) continue;
+    targetState = { v, a: na, i: 0 };
+    return true;
+  }
+  // Next volley
+  if (v + 1 < match.volees.length) {
+    const nv = v + 1;
+    for (let na = 0; na < 4; na++) {
+      if (!canArcherShoot(match.volees[nv], na)) continue;
+      targetState = { v: nv, a: na, i: 0 };
+      return true;
+    }
+  }
+  return false; // End of match
+}
+
+function recedeTargetPos() {
+  const match = getActiveMatch();
+  if (!match || !targetState) return false;
+  const { v, a, i } = targetState;
+
+  if (i === 1) {
+    targetState = { v, a, i: 0 };
+    return true;
+  }
+  // Previous archer (skipping anyone who can't shoot), land on their last slot
+  const curMaxI = numArrowSlots(match.volees[v]);
+  for (let na = a - 1; na >= 0; na--) {
+    if (!canArcherShoot(match.volees[v], na)) continue;
+    targetState = { v, a: na, i: curMaxI - 1 };
+    return true;
+  }
+  // Previous volley, land on last archer's last slot
+  if (v > 0) {
+    const pv = v - 1;
+    const pMaxI = numArrowSlots(match.volees[pv]);
+    for (let na = 3; na >= 0; na--) {
+      if (!canArcherShoot(match.volees[pv], na)) continue;
+      targetState = { v: pv, a: na, i: pMaxI - 1 };
+      return true;
+    }
+  }
+  return false;
+}
+
+function scoreAtPoint(x, y, bow) {
+  const dx = x - 200, dy = y - 200;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  const rings = targetRingDefs(bow);
+  // X = mouche (centre du 10)
+  if (d <= targetXRadius(bow)) return 'X';
+  // Du plus petit (10) au plus grand : 1ère zone qui contient le point.
+  for (let i = rings.length - 1; i >= 0; i--) {
+    if (d <= rings[i].r) return String(rings[i].score);
+  }
+  return 'M';   // hors blason (en poulie : tout ce qui est < 5)
+}
+
+function colorForScore(val) {
+  if (val === 'X' || val === '10' || val === '9') return '#e0a030';
+  if (val === '8' || val === '7') return '#c53030';
+  if (val === '6' || val === '5') return '#3d7cbf';
+  if (val === '4' || val === '3') return '#1a1a1a';
+  if (val === '2' || val === '1') return '#d0cab0';
+  return '#9a2b2b';
+}
+
+// Définition des anneaux de la cible, du plus extérieur au plus intérieur.
+// Classique : blason complet 10 zones (1→10). Poulie : blason RÉDUIT, seules
+// les zones 5 à 10 existent, étalées sur tout le rayon (200 = centre, R=190).
+function targetRingDefs(bow) {
+  if (bow === 'poulie') {
+    const s = 190 / 6;   // 6 zones de score (5→10) réparties sur le rayon
+    return [
+      { score: 5,  r: 6 * s, fill: '#3d7cbf', stroke: '#1e4272', label: '#e8eff7' },
+      { score: 6,  r: 5 * s, fill: '#4a8cd0', stroke: '#1e4272', label: '#e8eff7' },
+      { score: 7,  r: 4 * s, fill: '#d14545', stroke: '#7a1f1f', label: '#fff' },
+      { score: 8,  r: 3 * s, fill: '#e25656', stroke: '#7a1f1f', label: '#fff' },
+      { score: 9,  r: 2 * s, fill: '#e8b843', stroke: '#8a6c20', label: '#4a3a0f' },
+      { score: 10, r: 1 * s, fill: '#f2c95a', stroke: '#8a6c20', label: '#4a3a0f' }
+    ];
+  }
+  return [
+    { score: 1,  r: 190, fill: '#fafaf3', stroke: '#2a2a22', label: '#2a2a22' },
+    { score: 2,  r: 171, fill: '#faf7e8', stroke: '#2a2a22', label: '#2a2a22' },
+    { score: 3,  r: 152, fill: '#2c2a22', stroke: '#000',    label: '#d8d3c0' },
+    { score: 4,  r: 133, fill: '#2c2a22', stroke: '#5a5750', label: '#d8d3c0' },
+    { score: 5,  r: 114, fill: '#3d7cbf', stroke: '#1e4272', label: '#e8eff7' },
+    { score: 6,  r: 95,  fill: '#4a8cd0', stroke: '#1e4272', label: '#e8eff7' },
+    { score: 7,  r: 76,  fill: '#d14545', stroke: '#7a1f1f', label: '#fff' },
+    { score: 8,  r: 57,  fill: '#e25656', stroke: '#7a1f1f', label: '#fff' },
+    { score: 9,  r: 38,  fill: '#e8b843', stroke: '#8a6c20', label: '#4a3a0f' },
+    { score: 10, r: 19,  fill: '#f2c95a', stroke: '#8a6c20', label: '#4a3a0f' }
+  ];
+}
+// Rayon de la zone X (mouche) = moitié du plus petit anneau (le 10).
+function targetXRadius(bow) {
+  const rings = targetRingDefs(bow);
+  return rings[rings.length - 1].r / 2;
+}
+// Arme de l'équipe active, pour la cible et le groupement.
+function activeBow() { return bowForTeam(getActiveTeam(), ui.activeTeam); }
+
+// Returns SVG markup for the archery target face (rings + labels + X cross).
+// Size is controlled by the viewBox; callers wrap it in their own <svg>.
+function targetFaceSvgMarkup(bow) {
+  const rings = targetRingDefs(bow);
+  const ringsSvg = rings.map(ring =>
+    `<circle cx="200" cy="200" r="${ring.r}" fill="${ring.fill}" stroke="${ring.stroke}" stroke-width="0.7"/>`
+  ).join('');
+  const xR = targetXRadius(bow);
+  const xMarker = `
+    <circle cx="200" cy="200" r="${(xR).toFixed(1)}" fill="none" stroke="#8a6c20" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.7"/>
+    <line x1="197" y1="200" x2="203" y2="200" stroke="#8a6c20" stroke-width="1" opacity="0.7"/>
+    <line x1="200" y1="197" x2="200" y2="203" stroke="#8a6c20" stroke-width="1" opacity="0.7"/>
+  `;
+  return ringsSvg + xMarker;
+}
+
+function renderTargetModal() {
+  const match = getActiveMatch();
+  if (!match || !targetState) return;
+
+  const { v, a, i } = targetState;
+  const archerName = getArchers()[a];
+  const isBarrage = !!match.volees[v].barrage;
+  const currentVal = match.volees[v].arrows[a][i];
+  const hasValue = arrowIsSet(currentVal);
+
+  // Subtitle text
+  const flecheLabel = isBarrage ? 'Flèche de barrage' : `Flèche ${i + 1}`;
+  const subtitleText = `Volée ${v + 1} · ${flecheLabel}${hasValue ? ' · actuellement : ' + currentVal : ''}`;
+
+  // Previously placed (via target) arrows — markers still shown on the target
+  const markersHtml = targetHistory.map(h => `
+    <circle class="target-marker" cx="${h.x}" cy="${h.y}" r="5"
+            fill="${h.color}" stroke="#fff" stroke-width="1.8" opacity="1"/>
+  `).join('');
+
+  // Build target SVG (World Archery face — full pour classique, réduit 5→10
+  // pour poulie). ViewBox 0 0 400 400, center at 200,200.
+  // Labels placés à mi-hauteur de chaque anneau, sur la moitié supérieure.
+  const bow = activeBow();
+  const ringDefs = targetRingDefs(bow);
+  const labelsSvg = ringDefs.map((ring, idx) => {
+    const outer = ring.r;
+    const inner = idx < ringDefs.length - 1 ? ringDefs[idx + 1].r : targetXRadius(bow);
+    const mid = (outer + inner) / 2;
+    return `<text x="200" y="${(200 - mid).toFixed(1)}" text-anchor="middle" dy="3.5"
+           font-family="'JetBrains Mono', monospace" font-size="8" fill="${ring.label}"
+           font-weight="600" opacity="0.7">${ring.score}</text>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'target-modal-overlay';
+  overlay.className = 'target-modal-overlay';
+  overlay.innerHTML = `
+    <div class="target-modal" onclick="event.stopPropagation();">
+      <div class="target-modal-head">
+        <div>
+          <div class="who"><span class="who-dot" style="background:${SEG_COLORS[a % SEG_COLORS.length]};"></span>${archerName}</div>
+          <div class="when">${subtitleText}</div>
+        </div>
+        <button class="target-close" id="target-close-btn" title="Fermer">✕</button>
+      </div>
+
+      <div class="target-wrap">
+        <svg class="target-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" id="target-svg">
+          <defs>
+            <clipPath id="loupe-clip">
+              <circle cx="0" cy="0" r="56"/>
+            </clipPath>
+          </defs>
+          ${targetFaceSvgMarkup(bow)}
+          ${labelsSvg}
+          <g id="target-markers">${markersHtml}</g>
+          <circle id="preview-marker" class="target-marker" cx="0" cy="0" r="6"
+                  fill="none" stroke="#fff" stroke-width="2" opacity="0"/>
+
+          <!-- Loupe / magnifier: shown during touch or mouse-drag. -->
+          <g id="loupe-group" style="display:none; pointer-events:none;">
+            <circle id="loupe-shadow" cx="0" cy="0" r="62" fill="rgba(0,0,0,0.5)"/>
+            <g id="loupe-content" clip-path="url(#loupe-clip)">
+              <!-- Magnified target — injected via JS because we need dynamic transform -->
+              <g id="loupe-target-clone"></g>
+              <!-- Crosshair at center of loupe -->
+              <line x1="-18" y1="0" x2="-6" y2="0" stroke="#fff" stroke-width="1.5"/>
+              <line x1="6" y1="0" x2="18" y2="0" stroke="#fff" stroke-width="1.5"/>
+              <line x1="0" y1="-18" x2="0" y2="-6" stroke="#fff" stroke-width="1.5"/>
+              <line x1="0" y1="6" x2="0" y2="18" stroke="#fff" stroke-width="1.5"/>
+              <circle cx="0" cy="0" r="2" fill="#fff"/>
+            </g>
+            <circle cx="0" cy="0" r="56" fill="none" stroke="#fff" stroke-width="2.5"/>
+            <circle cx="0" cy="0" r="56" fill="none" stroke="rgba(0,0,0,0.6)" stroke-width="1"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="target-readout">
+        <div>
+          <div class="pending-label">Score</div>
+          <div class="pending-score" id="pending-score">—</div>
+        </div>
+        <div class="target-readout-meta" id="target-meta">Touche la cible pour placer la flèche</div>
+      </div>
+
+      <div class="target-actions">
+        <button id="target-miss" class="miss" title="Manqué (M) — valide et ferme">Manqué (M)</button>
+        <button id="target-clear" title="Effacer cette flèche">Effacer</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Tap background to close
+  overlay.addEventListener('click', () => {
+    closeTargetModal();
+    renderMatchView();
+  });
+
+  // Close button
+  document.getElementById('target-close-btn').onclick = () => {
+    closeTargetModal();
+    if (ui.view === 'match') renderMatchView();
+  };
+
+  // Target SVG tap
+  const svg = document.getElementById('target-svg');
+  const previewMarker = document.getElementById('preview-marker');
+  const pendingScore = document.getElementById('pending-score');
+  const meta = document.getElementById('target-meta');
+
+  function svgPointFromEvent(evt) {
+    const rect = svg.getBoundingClientRect();
+    const isTouch = evt.touches && evt.touches[0];
+    const cx = isTouch ? evt.touches[0].clientX : evt.clientX;
+    const cy = isTouch ? evt.touches[0].clientY : evt.clientY;
+    if (cx === undefined) return null;
+    const x = ((cx - rect.left) / rect.width) * 400;
+    const y = ((cy - rect.top) / rect.height) * 400;
+    return { x, y };
+  }
+
+  let pendingValue = null;
+  let pendingPoint = null;
+  let isDragging = false;
+
+  const loupeGroup = document.getElementById('loupe-group');
+  const loupeTargetClone = document.getElementById('loupe-target-clone');
+  const loupeShadow = document.getElementById('loupe-shadow');
+
+  // Fill the loupe with a scaled copy of the target face
+  // Loupe zoom factor ~3x: when centered at (px,py), we scale the whole face
+  // so the area around (px,py) fills the loupe.
+  loupeTargetClone.innerHTML = targetFaceSvgMarkup(bow);
+
+  function updateLoupe(pt) {
+    const zoom = 1.5;
+    // Loupe center is offset above the finger so it's not hidden
+    const loupeCenterX = Math.max(66, Math.min(334, pt.x));
+    const loupeCenterY = Math.max(70, pt.y - 80);  // 80 above the finger
+    loupeGroup.setAttribute('transform', `translate(${loupeCenterX},${loupeCenterY})`);
+    // The cloned target needs to be transformed so that (pt.x, pt.y) lands at loupe center (0,0 in loupe local coords)
+    loupeTargetClone.setAttribute('transform', `scale(${zoom}) translate(${-pt.x},${-pt.y})`);
+    loupeGroup.style.display = 'block';
+  }
+  function hideLoupe() { loupeGroup.style.display = 'none'; }
+
+  function showPreview(pt) {
+    previewMarker.setAttribute('cx', pt.x);
+    previewMarker.setAttribute('cy', pt.y);
+    previewMarker.setAttribute('opacity', '1');
+    // Couleur de l'archer en cours d'édition (cohérent avec le code couleur cible)
+    const color = SEG_COLORS[a % SEG_COLORS.length];
+    previewMarker.setAttribute('fill', color);
+  }
+  function hidePreview() { previewMarker.setAttribute('opacity', '0'); }
+
+  function handlePoint(pt) {
+    pendingPoint = pt;
+    pendingValue = scoreAtPoint(pt.x, pt.y, bow);
+    pendingScore.textContent = pendingValue === 'M' ? 'M' : pendingValue;
+    showPreview(pt);
+    updateLoupe(pt);
+    meta.textContent = 'Relâche pour valider · ' + (pendingValue === 'M' ? 'Raté' : 'Score ' + pendingValue);
+  }
+
+  function commitPending() {
+    if (!pendingValue) return;
+    const match = getActiveMatch();
+    const { v, a, i } = targetState;
+    match.volees[v].arrows[a][i] = pendingValue;
+    if (!match.volees[v].positions) {
+      match.volees[v].positions = [[null,null],[null,null],[null,null],[null,null]];
+    }
+    if (pendingPoint && pendingValue !== 'M') {
+      match.volees[v].positions[a][i] = { x: pendingPoint.x, y: pendingPoint.y };
+    } else {
+      match.volees[v].positions[a][i] = null;
+    }
+    debouncedSave();
+    // Close and return to the match view
+    closeTargetModal();
+    if (ui.view === 'match') renderMatchView();
+  }
+
+  function cancelPending() {
+    pendingValue = null;
+    pendingPoint = null;
+    isDragging = false;
+    hideLoupe();
+    hidePreview();
+    pendingScore.textContent = '—';
+    meta.textContent = 'Touche la cible pour placer la flèche';
+  }
+
+  // ── Touch events (mobile primary interaction) ──
+  svg.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const pt = svgPointFromEvent(e);
+    if (!pt) return;
+    isDragging = true;
+    handlePoint(pt);
+  }, { passive: false });
+
+  svg.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const pt = svgPointFromEvent(e);
+    if (pt) handlePoint(pt);
+  }, { passive: false });
+
+  svg.addEventListener('touchend', (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    isDragging = false;
+    hideLoupe();
+    commitPending();
+  }, { passive: false });
+
+  svg.addEventListener('touchcancel', () => {
+    cancelPending();
+  });
+
+  // ── Mouse events (desktop fallback) ──
+  svg.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const pt = svgPointFromEvent(e);
+    if (!pt) return;
+    isDragging = true;
+    handlePoint(pt);
+  });
+  svg.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const pt = svgPointFromEvent(e);
+    if (pt) handlePoint(pt);
+  });
+  svg.addEventListener('mouseup', (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    hideLoupe();
+    commitPending();
+  });
+  svg.addEventListener('mouseleave', () => {
+    if (!isDragging) return;
+    // Treat as cancel if dragged off the target
+    cancelPending();
+  });
+
+  // Action buttons
+  document.getElementById('target-miss').onclick = () => {
+    const match = getActiveMatch();
+    const { v, a, i } = targetState;
+    match.volees[v].arrows[a][i] = 'M';
+    if (match.volees[v].positions) match.volees[v].positions[a][i] = null;
+    debouncedSave();
+    closeTargetModal();
+    if (ui.view === 'match') renderMatchView();
+  };
+  document.getElementById('target-clear').onclick = () => {
+    const match = getActiveMatch();
+    const { v, a, i } = targetState;
+    match.volees[v].arrows[a][i] = null;
+    if (match.volees[v].positions) match.volees[v].positions[a][i] = null;
+    debouncedSave();
+    closeTargetModal();
+    if (ui.view === 'match') renderMatchView();
+  };
+}
+
+// Partial updates without full rerender (keeps focus alive)
+function updateVolleyDisplay(vi) {
+  const match = getActiveMatch();
+  const v = match.volees[vi];
+  const total = volleyTotal(v);
+  const hasArrows = volleyArrowCount(v) > 0;
+  const row = document.querySelectorAll('.volley-row')[vi];
+  if (!row) return;
+  const totalTd = row.querySelector('.volley-total');
+  if (totalTd) totalTd.textContent = hasArrows ? total : '';
+  // set cell
+  const setTd = row.querySelector('.setpts');
+  if (setTd) {
+    const advNum = v.adv === null || v.adv === '' ? null : Number(v.adv);
+    let html = '<span class="zero">—</span>';
+    if (hasArrows && advNum !== null && !isNaN(advNum)) {
+      if (total > advNum) html = `<span class="setpt-pair"><span class="our win-cell">2</span><span class="dash">·</span><span class="their zero">0</span></span>`;
+      else if (total < advNum) html = `<span class="setpt-pair"><span class="our zero">0</span><span class="dash">·</span><span class="their win-cell">2</span></span>`;
+      else html = `<span class="setpt-pair"><span class="our tie-cell">1</span><span class="dash">·</span><span class="their tie-cell">1</span></span>`;
+    }
+    setTd.innerHTML = html;
+  }
+}
+
+function updateMatchHeader() {
+  const match = getActiveMatch();
+  if (!match) return;
+  const res = matchResult(match);
+  const totals = matchTotal(match);
+  const header = document.querySelector('.match-result');
+  if (!header) return;
+
+  const statusText = { win: 'Victoire', loss: 'Défaite', tie: 'Égalité', pending: 'En cours' }[res.status];
+  header.innerHTML = `
+    <div class="result-sets">
+      <span class="our">${res.our}</span>
+      <span class="dash">·</span>
+      <span class="their">${res.their}</span>
+    </div>
+    <div class="result-status ${res.status}">${statusText}</div>
+    ${hasArrowData(match) ? `<div style="font-family:'JetBrains Mono', monospace; font-size:0.72rem; color:var(--ink-mute); margin-top:0.4rem;">${totals.our} · ${totals.their} pts</div>` : ''}
+  `;
+
+  // Update totals row
+  const totalsRow = document.querySelector('tr.totals-row');
+  if (totalsRow) {
+    const tds = totalsRow.querySelectorAll('td');
+    // tds[0] = empty, then 4 archer totals (colspan 2 each) with separators, then team total, adv total, empty
+    // Update archer totals
+    for (let ai = 0; ai < 4; ai++) {
+      const s = archerStats(match, ai);
+      const idx = 1 + ai * 2; // accounts for separators
+      const td = tds[idx];
+      if (td) {
+        td.innerHTML = `
+          <div class="archer-total">${s.total || '—'}</div>
+          <div class="archer-avg">${s.avg !== null ? s.avg.toFixed(1) : ''}/f · ${s.count}f</div>`;
+      }
+    }
+    // team total
+    const totalTd = totalsRow.querySelector('.volley-total');
+    if (totalTd) totalTd.textContent = totals.our || '—';
+    const advTotalTd = totalsRow.querySelector('.volley-total.tiny');
+    if (advTotalTd) advTotalTd.textContent = totals.their || '—';
+  }
+
+  // Update matches list badge
+  renderMatchesList();
+}
+
+function updateArcherCard(ai) {
+  const match = getActiveMatch();
+  if (!match) return;
+  const cards = document.querySelectorAll('.archer-card');
+  const card = cards[ai];
+  if (!card) return;
+  const s = archerStats(match, ai);
+  const scoreCounts = countArcherScores(match, ai);
+  const name = getArchers()[ai];
+  card.innerHTML = `
+    <div class="name">${name}</div>
+    <div class="stats-row"><span>Moyenne</span><strong>${s.avg !== null ? s.avg.toFixed(2) : '—'}</strong></div>
+    <div class="stats-row"><span>Total</span><strong>${s.total || '—'}</strong></div>
+    <div class="stats-row"><span>Flèches</span><strong>${s.count}</strong></div>
+    <div class="stats-row"><span>X / 10 / 9</span><strong>${scoreCounts.x} · ${scoreCounts['10']} · ${scoreCounts['9']}</strong></div>
+  `;
+}
+
+// ───────────────────────────────────────────────────────────
+// Global stats view
+// ───────────────────────────────────────────────────────────
+function allMatches() {
+  const out = [];
+  for (const name of getCompOrder()) {
+    const comp = getComps()[name];
+    if (!comp) continue;
+    for (const m of comp.matches) out.push({ compName: name, match: m });
+  }
+  return out;
+}
+
+// ───────────────────────────────────────────────────────────
+// Grouping view — cumulative arrow positions per archer
+// ───────────────────────────────────────────────────────────
+function collectArcherPositions(matches, archerIdx) {
+  // Returns: { shots: [{x, y, score}...], counts: {x, 10, 9, ...}, total, arrowCount, avg, mpi: {x,y} | null, spread: number }
+  const shots = [];
+  let total = 0, arrowCount = 0;
+  const counts = { x: 0, '10': 0, '9': 0, '8': 0, '7': 0, '6': 0, '5': 0, '4': 0, '3': 0, '2': 0, '1': 0, m: 0 };
+
+  for (const m of matches) {
+    for (const v of m.volees) {
+      const positions = v.positions || [];
+      const maxI = numArrowSlots(v);
+      for (let i = 0; i < maxI; i++) {
+        const val = v.arrows[archerIdx] ? v.arrows[archerIdx][i] : null;
+        if (!arrowIsSet(val)) continue;
+        arrowCount++;
+        const numeric = arrowValue(val);
+        if (numeric !== null) total += numeric;
+        const cat = arrowCategory(val);
+        if (cat === 'x') counts.x++;
+        else if (cat === '10') counts['10']++;
+        else if (cat === '9') counts['9']++;
+        else if (cat === 'm') counts.m++;
+        else if (cat === 'r') { counts[Number(val) === 8 ? '8' : '7']++; }
+        else if (cat === 'b') { counts[Number(val) === 6 ? '6' : '5']++; }
+        else if (cat === 'k') { counts[Number(val) === 4 ? '4' : '3']++; }
+        else if (cat === 'w') { counts[Number(val) === 2 ? '2' : '1']++; }
+
+        const pt = positions[archerIdx] ? positions[archerIdx][i] : null;
+        if (pt && val !== 'M') {
+          shots.push({ x: pt.x, y: pt.y, score: String(val) });
+        }
+      }
+    }
+  }
+
+  // Mean point of impact (MPI)
+  let mpi = null;
+  if (shots.length > 0) {
+    const sx = shots.reduce((s, p) => s + p.x, 0) / shots.length;
+    const sy = shots.reduce((s, p) => s + p.y, 0) / shots.length;
+    mpi = { x: sx, y: sy };
+  }
+
+  // Spread = max pairwise distance (group size)
+  let spread = 0;
+  for (let i = 0; i < shots.length; i++) {
+    for (let j = i + 1; j < shots.length; j++) {
+      const dx = shots[i].x - shots[j].x;
+      const dy = shots[i].y - shots[j].y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > spread) spread = d;
+    }
+  }
+
+  return {
+    shots, counts, total, arrowCount,
+    avg: arrowCount > 0 ? total / arrowCount : null,
+    mpi, spread
+  };
+}
+
+function renderGroupingView() {
+  const container = document.getElementById('grouping-view');
+
+  // Determine scope
+  const scope = ui.groupingScope || 'current';
+  let matches = [];
+  let scopeLabel = '';
+
+  if (scope === 'current') {
+    const m = getActiveMatch();
+    if (m) {
+      matches = [m];
+      const comp = getComps()[ui.activeComp];
+      const idx = comp ? comp.matches.findIndex(x => x.id === m.id) : 0;
+      scopeLabel = `Match ${idx + 1} · ${ui.activeComp} · ${ui.activeTeam} vs ${m.opponent || 'Sans nom'}`;
+    } else {
+      scopeLabel = 'Aucun match sélectionné';
+    }
+  } else if (scope === 'comp') {
+    const comp = getComps()[ui.activeComp];
+    matches = comp ? comp.matches : [];
+    scopeLabel = `Compétition : ${ui.activeComp} · ${matches.length} match${matches.length > 1 ? 'es' : ''}`;
+  } else {
+    matches = allMatches().map(x => x.match);
+    scopeLabel = `Toute la saison · ${matches.length} matches sur ${getCompOrder().length} compétitions`;
+  }
+
+  const stats = getArchers().map((_, ai) => collectArcherPositions(matches, ai));
+  const totalShotsWithPosition = stats.reduce((s, a) => s + a.shots.length, 0);
+
+  // Build cards
+  const cardsHtml = getArchers().map((name, ai) => {
+    const s = stats[ai];
+
+    // Plot dots for this archer
+    const dotsSvg = s.shots.map(shot => {
+      const c = SEG_COLORS[ai % SEG_COLORS.length];
+      // Slight transparency so overlapping dots show density
+      return `<circle cx="${shot.x.toFixed(1)}" cy="${shot.y.toFixed(1)}" r="5" fill="${c}" stroke="#fff" stroke-width="1.6" opacity="0.95"/>`;
+    }).join('');
+
+    // MPI marker (white crosshair)
+    const mpiSvg = s.mpi ? `
+      <g class="mpi-group">
+        <circle class="mpi-marker" cx="${s.mpi.x.toFixed(1)}" cy="${s.mpi.y.toFixed(1)}" r="8"/>
+        <circle class="mpi-marker-inner" cx="${s.mpi.x.toFixed(1)}" cy="${s.mpi.y.toFixed(1)}" r="1.5"/>
+        <line x1="${(s.mpi.x - 10).toFixed(1)}" y1="${s.mpi.y.toFixed(1)}" x2="${(s.mpi.x + 10).toFixed(1)}" y2="${s.mpi.y.toFixed(1)}" stroke="#fff" stroke-width="1"/>
+        <line x1="${s.mpi.x.toFixed(1)}" y1="${(s.mpi.y - 10).toFixed(1)}" x2="${s.mpi.x.toFixed(1)}" y2="${(s.mpi.y + 10).toFixed(1)}" stroke="#fff" stroke-width="1"/>
+      </g>
+    ` : '';
+
+    const noDataHtml = s.shots.length === 0 ? `
+      <div class="no-data">
+        <div class="no-data-main">Pas d'impacts</div>
+        <div>${s.arrowCount > 0 ? s.arrowCount + ' flèche' + (s.arrowCount > 1 ? 's' : '') + ' saisie' + (s.arrowCount > 1 ? 's' : '') + ' au clavier' : 'Aucune flèche'}</div>
+      </div>
+    ` : '';
+
+    // Footer stats
+    const goldCount = s.counts.x + s.counts['10'] + s.counts['9'];
+    const redCount = s.counts['8'] + s.counts['7'];
+    const spreadMm = s.spread > 0 ? (s.spread * (1220 / 380)).toFixed(0) : null;
+    // ^ approximate: standard 122cm face = 1220mm, our viewBox goes 0-400 with usable radius 190 (diameter 380).
+    //   So 1 viewBox unit ≈ 1220/380 mm on a 122 cm target face.
+
+    return `
+      <div class="archer-target-card">
+        <div class="head">
+          <div class="name">${name}</div>
+          <div class="count">${s.arrowCount} flèche${s.arrowCount > 1 ? 's' : ''}</div>
+        </div>
+        <div class="target-box">
+          <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+            ${targetFaceSvgMarkup(activeBow())}
+            ${dotsSvg}
+            ${mpiSvg}
+          </svg>
+          ${noDataHtml}
+        </div>
+        <div class="footer-stats">
+          <div class="cell">
+            <div class="lbl">Moyenne</div>
+            <div class="val">${s.avg !== null ? s.avg.toFixed(2) : '—'}</div>
+          </div>
+          <div class="cell">
+            <div class="lbl">X · 10 · 9</div>
+            <div class="val">${s.counts.x}·${s.counts['10']}·${s.counts['9']}</div>
+          </div>
+          <div class="cell">
+            <div class="lbl">Impacts</div>
+            <div class="val">${s.shots.length}</div>
+          </div>
+          ${s.shots.length >= 2 ? `
+          <div class="cell" style="grid-column: span 3;">
+            <div class="lbl">Groupement (Ø max)</div>
+            <div class="val" style="font-size: 0.78rem;">${spreadMm} mm sur cible 122 cm</div>
+          </div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <h2>Groupement</h2>
+    <div class="grouping-subtitle">
+      Position cumulée des flèches par ${nArcher(activeGender(), false)} — seules les flèches saisies via la cible tactile apparaissent ici.
+    </div>
+
+    <div class="grouping-scope">
+      <label>Portée :</label>
+      <select id="grouping-scope-select">
+        <option value="current"${scope === 'current' ? ' selected' : ''}>Match en cours</option>
+        <option value="comp"${scope === 'comp' ? ' selected' : ''}>Compétition en cours (${ui.activeComp})</option>
+        <option value="season"${scope === 'season' ? ' selected' : ''}>Toute la saison</option>
+      </select>
+      <span class="grouping-scope-count">${scopeLabel}</span>
+    </div>
+
+    <div class="grouping-grid">
+      ${cardsHtml}
+    </div>
+
+    ${totalShotsWithPosition === 0 ? `
+      <div style="margin-top: 1.25rem; padding: 1rem; background: var(--bg); border-radius: 4px; font-size: 0.85rem; color: var(--ink-soft); border-left: 2px solid var(--gold);">
+        <strong style="font-weight: 600;">Aucun impact enregistré pour cette portée.</strong>
+        Pour voir le groupement, utilise le bouton cible (en bas à droite de la vue Match) pour saisir les flèches en tapant directement sur la cible.
+      </div>
+    ` : ''}
+  `;
+
+  // Scope selector handler
+  const select = document.getElementById('grouping-scope-select');
+  if (select) {
+    select.onchange = (e) => {
+      ui.groupingScope = e.target.value;
+      renderGroupingView();
+      saveUiPrefs();
+    };
+  }
+}
+
+function renderGlobalView() {
+  const container = document.getElementById('global-view');
+
+  // Aggregate per archer: total, count, score distribution, color distribution
+  const archers = getArchers();
+  const perArcher = archers.map((_, ai) => ({
+    total: 0, count: 0,
+    scores: { x: 0, '10': 0, '9': 0, '8': 0, '7': 0, '6': 0, '5': 0, '4': 0, '3': 0, '2': 0, '1': 0, m: 0 },
+    colors: { Jaune: 0, Rouge: 0, Bleu: 0, Noir: 0, Blanc: 0, Brosse: 0 }
+  }));
+
+  let totalMatches = 0, playedMatches = 0, wins = 0, losses = 0, ties = 0;
+  for (const { match } of allMatches()) {
+    totalMatches++;
+    const res = matchResult(match);
+    if (res.status !== 'pending') {
+      playedMatches++;
+      if (res.status === 'win') wins++;
+      else if (res.status === 'loss') losses++;
+      else ties++;
+    }
+    for (let ai = 0; ai < 4; ai++) {
+      const s = archerStats(match, ai);
+      perArcher[ai].total += s.total;
+      perArcher[ai].count += s.count;
+      const sc = countArcherScores(match, ai);
+      for (const k in sc) perArcher[ai].scores[k] += sc[k];
+      const cc = countArcherColors(match, ai);
+      for (const k in cc) perArcher[ai].colors[k] += cc[k];
+    }
+  }
+
+  // Rank archers by average
+  const ranked = perArcher.map((p, i) => ({
+    ...p, name: archers[i], idx: i,
+    avg: p.count > 0 ? p.total / p.count : null
+  })).sort((a, b) => (b.avg || -1) - (a.avg || -1));
+
+  const maxAvg = Math.max(10, ...ranked.map(r => r.avg || 0));
+
+  // Score distribution table
+  const scoreKeys = ['x', '10', '9', '8', '7', '6', '5', '4', '3', '2', '1', 'm'];
+  const scoreLabels = {
+    'x': 'X (dix central)', '10': '10', '9': '9', '8': '8', '7': '7', '6': '6',
+    '5': '5', '4': '4', '3': '3', '2': '2', '1': '1', 'm': 'M (raté)'
+  };
+  const scoreSwatch = {
+    'x': 'gold-in', '10': 'gold', '9': 'gold',
+    '8': 'red', '7': 'red', '6': 'blue', '5': 'blue',
+    '4': 'black', '3': 'black', '2': 'white', '1': 'white', 'm': 'miss'
+  };
+
+  let scoreTableRows = '';
+  for (const k of scoreKeys) {
+    const teamTotal = perArcher.reduce((s, p) => s + p.scores[k], 0);
+    scoreTableRows += `
+      <tr>
+        <td><span class="score-label"><span class="score-swatch ${scoreSwatch[k]}"></span>${scoreLabels[k]}</span></td>
+        ${perArcher.map(p => `<td>${p.scores[k] || '—'}</td>`).join('')}
+        <td class="total-col">${teamTotal || '—'}</td>
+      </tr>`;
+  }
+  // Totals row
+  const totalArrowsPerArcher = perArcher.map(p => p.count);
+  const grandTotal = totalArrowsPerArcher.reduce((a, b) => a + b, 0);
+  scoreTableRows += `
+    <tr class="total-row">
+      <td>Total flèches</td>
+      ${totalArrowsPerArcher.map(c => `<td>${c}</td>`).join('')}
+      <td class="total-col">${grandTotal}</td>
+    </tr>`;
+
+  // Color distribution bars
+  const colorKeys = ['Jaune', 'Rouge', 'Bleu', 'Noir', 'Blanc', 'Brosse'];
+  let colorBarsHtml = '';
+  for (const ck of colorKeys) {
+    const perArcherColors = perArcher.map(p => p.colors[ck]);
+    const total = perArcherColors.reduce((a, b) => a + b, 0);
+    let segsHtml = '';
+    if (total > 0) {
+      for (let i = 0; i < 4; i++) {
+        const val = perArcherColors[i];
+        if (val > 0) {
+          segsHtml += `<div class="seg seg-${i}" style="flex:${val}" title="${archers[i]}: ${val}"></div>`;
+        }
+      }
+    }
+    const swatch = ck === 'Jaune' ? 'gold' : ck === 'Rouge' ? 'red' : ck === 'Bleu' ? 'blue' :
+                   ck === 'Noir' ? 'black' : ck === 'Blanc' ? 'white' : 'miss';
+    colorBarsHtml += `
+      <div class="color-bar-row">
+        <div class="label"><span class="score-swatch ${swatch}"></span>${ck}</div>
+        <div class="color-bar">${segsHtml}</div>
+        <div style="text-align:right; color:var(--ink);">${total || '—'}</div>
+      </div>`;
+  }
+
+  // Record
+  const recordStr = `${wins}V · ${ties}N · ${losses}D`;
+  const playedStr = `${playedMatches} / ${totalMatches} matches joués`;
+  // Moyenne de volée sur toute la saison (équipe vs adverse)
+  const seasonVA = volleyAverages(allMatches().map(x => x.match));
+
+  container.innerHTML = `
+    <h2>Statistiques globales</h2>
+
+    <div class="global-section">
+      <h3>Bilan équipe</h3>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem;">
+        <div class="rank-card">
+          <div class="rank-head">
+            <div class="name" style="font-size:0.95rem;">Matches</div>
+            <div class="avg">${playedStr}</div>
+          </div>
+          <div class="rank-meta">
+            <span style="color:var(--win);">${wins} victoire${wins > 1 ? 's' : ''}</span>
+            <span style="color:var(--tie);">${ties} nul${ties > 1 ? 's' : ''}</span>
+            <span style="color:var(--loss);">${losses} défaite${losses > 1 ? 's' : ''}</span>
+          </div>
+          <div class="rank-meta" style="margin-top:0.3rem; border-top:1px solid var(--line-soft); padding-top:0.3rem;">
+            <span title="Moyenne de points marqués par volée sur la saison (sur 60)">Volée : <strong style="color:var(--ink);">${seasonVA.our !== null ? seasonVA.our.toFixed(1) : '—'}</strong>/60</span>
+            <span title="Moyenne de points adverses par volée sur la saison (sur 60)">Adv. : <strong style="color:var(--ink);">${seasonVA.their !== null ? seasonVA.their.toFixed(1) : '—'}</strong>/60</span>
+          </div>
+        </div>
+        ${getCompOrder().map(cn => {
+          const cms = getComps()[cn].matches;
+          let w = 0, l = 0, t = 0, p = 0;
+          for (const m of cms) {
+            const r = matchResult(m);
+            if (r.status !== 'pending') { p++; if (r.status === 'win') w++; else if (r.status === 'loss') l++; else t++; }
+          }
+          const va = volleyAverages(cms);
+          return `
+            <div class="rank-card">
+              <div class="rank-head">
+                <div class="name" style="font-size:0.95rem;">${cn}</div>
+                <div class="avg">${p}/${cms.length}</div>
+              </div>
+              <div class="rank-meta">
+                <span style="color:var(--win);">${w}V</span>
+                <span style="color:var(--tie);">${t}N</span>
+                <span style="color:var(--loss);">${l}D</span>
+              </div>
+              <div class="rank-meta" style="margin-top:0.3rem; border-top:1px solid var(--line-soft); padding-top:0.3rem;">
+                <span title="Moyenne de points marqués par volée (sur 60)">Volée : <strong style="color:var(--ink);">${va.our !== null ? va.our.toFixed(1) : '—'}</strong>/60</span>
+                <span title="Moyenne de points adverses par volée (sur 60)">Adv. : <strong style="color:var(--ink);">${va.their !== null ? va.their.toFixed(1) : '—'}</strong>/60</span>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="global-section">
+      <h3>Classement par ${nArcher(activeGender(), false)} — moyenne par flèche</h3>
+      <div class="archer-ranking">
+        ${ranked.map(r => `
+          <div class="rank-card">
+            <div class="rank-head">
+              <div class="name">${r.name}</div>
+              <div class="avg">${r.avg !== null ? r.avg.toFixed(2) : '—'}</div>
+            </div>
+            <div class="rank-bar">
+              <div class="rank-bar-fill" style="width:${r.avg ? (r.avg / 10 * 100) : 0}%"></div>
+            </div>
+            <div class="rank-meta">
+              <span>${r.total} pts</span>
+              <span>${r.count} flèches</span>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="global-section">
+      <h3>Répartition des scores</h3>
+      <table class="score-dist-table">
+        <thead>
+          <tr>
+            <th>Valeur</th>
+            ${archers.map(n => `<th>${n}</th>`).join('')}
+            <th>Équipe</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${scoreTableRows}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="global-section">
+      <h3>Répartition par couleur (cible)</h3>
+      <div class="color-bars">
+        ${colorBarsHtml}
+      </div>
+      <div style="font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.75rem; font-family: 'JetBrains Mono', monospace;">
+        ${archers.map((n, i) => `<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px;height:10px;background:${SEG_COLORS[i % SEG_COLORS.length]};border-radius:2px;"></span>${n}</span>`).join(' &nbsp; ')}
+      </div>
+    </div>
+
+    <div class="global-section" style="border-top: 1px solid var(--line-soft); padding-top: 1.25rem;">
+      <h3>Données</h3>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom: 0.75rem;">
+        <button class="btn" id="btn-export">Exporter (JSON)</button>
+        <button class="btn" id="btn-import">Importer</button>
+        <button class="btn danger" id="btn-reset">Tout réinitialiser</button>
+      </div>
+      <div style="font-size: 0.78rem; color: var(--ink-mute); line-height: 1.55;" id="storage-info"></div>
+      <input type="file" id="import-file" accept=".json" class="hidden">
+    </div>
+  `;
+
+  document.getElementById('btn-export').onclick = exportData;
+  document.getElementById('btn-import').onclick = () => document.getElementById('import-file').click();
+  document.getElementById('import-file').onchange = importData;
+  document.getElementById('btn-reset').onclick = resetData;
+
+  // Storage location info
+  const info = document.getElementById('storage-info');
+  if (info) {
+    const hasArtifact = typeof window.storage !== 'undefined';
+    let hasLocal = false;
+    try { localStorage.setItem('__test__', '1'); localStorage.removeItem('__test__'); hasLocal = true; } catch (e) {}
+    let size = '?';
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) size = (raw.length / 1024).toFixed(1) + ' Ko';
+    } catch (e) {}
+    const parts = [];
+    if (firestoreReady) parts.push('<strong style="color:var(--win);">Firebase (synchronisé entre appareils)</strong>');
+    else parts.push('<span style="color:var(--tie);">Firebase (hors ligne — reconnexion auto)</span>');
+    if (hasLocal) parts.push(`cache local ${size !== '?' ? '(' + size + ')' : ''}`);
+    if (hasArtifact) parts.push('artefact');
+    info.innerHTML = `
+      Stockage : ${parts.join(' · ')}.
+      ${firestoreReady
+        ? 'Toute modification est partagée en temps réel avec les autres appareils ouvrant la même URL. Un cache local garde tes données accessibles hors ligne.'
+        : 'Les données sont gardées en local. La synchronisation reprendra automatiquement au prochain retour en ligne.'}
+      Pense à exporter régulièrement en JSON pour archivage.
+    `;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// Data import/export/reset
+// ───────────────────────────────────────────────────────────
+function exportData() {
+  try {
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `suivi-match_${new Date().toISOString().slice(0,10)}.json`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    // Clean up after a short delay so the browser actually starts the download
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+    showToast('Fichier JSON téléchargé — vérifie ton dossier Téléchargements');
+  } catch (err) {
+    console.error('Export failed:', err);
+    alert('Export impossible : ' + err.message);
+  }
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!confirm('L\'import remplacera toutes les données actuelles — y compris celles des autres appareils connectés. Continuer ?')) {
+    e.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const loaded = JSON.parse(evt.target.result);
+      if (!loaded.competitions && !loaded.disciplines) throw new Error('Format invalide');
+      state = { ...defaultState(), ...loaded };
+      // If importing the old flat format, drop the default-seeded disciplines so
+      // migrateState() rebuilds them purely from the imported competitions.
+      if (loaded.competitions) { delete state.disciplines; delete state.disciplineOrder; }
+      migrateState();
+      resolveActiveMatch();
+      render();
+      saveState();
+      saveUiPrefs();
+      alert('Données importées !');
+    } catch (err) {
+      alert('Erreur : ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function resetData() {
+  if (!confirm('Réinitialiser toutes les données ? ATTENTION : cela efface aussi les données des autres appareils connectés.')) return;
+  state = defaultState();
+  resolveActiveMatch();
+  render();
+  saveState();
+  saveUiPrefs();
+}
+
+// ───────────────────────────────────────────────────────────
+// Modals
+// ───────────────────────────────────────────────────────────
+function openAddCompModal() {
+  const team = getActiveTeam();
+  if (!team) { alert('Crée d\'abord une équipe.'); return; }
+  showModal('Nouvelle compétition', 'Nom', '', (name) => {
+    name = name.trim();
+    if (!name) return;
+    if (team.competitions[name]) { alert('Cette compétition existe déjà.'); return; }
+    team.competitions[name] = { matches: [] };
+    team.compOrder.push(name);
+    ui.activeComp = name;
+    ui.activeMatchId = null;
+    render();
+    saveState();
+    saveUiPrefs();
+  });
+}
+
+function openRenameCompModal(oldName) {
+  const team = getActiveTeam();
+  if (!team) return;
+  showModal('Renommer la compétition', 'Nom', oldName, (newName) => {
+    newName = newName.trim();
+    if (!newName || newName === oldName) return;
+    if (team.competitions[newName]) { alert('Ce nom est déjà pris.'); return; }
+    team.competitions[newName] = team.competitions[oldName];
+    delete team.competitions[oldName];
+    team.compOrder = team.compOrder.map(n => n === oldName ? newName : n);
+    if (ui.activeComp === oldName) ui.activeComp = newName;
+    render();
+    saveState();
+    saveUiPrefs();
+  }, () => {
+    // Delete option
+    if (team.compOrder.length <= 1) { alert('Impossible de supprimer la dernière compétition.'); return; }
+    if (!confirm(`Supprimer la compétition "${oldName}" et tous ses matches ?`)) return;
+    delete team.competitions[oldName];
+    team.compOrder = team.compOrder.filter(n => n !== oldName);
+    if (ui.activeComp === oldName) {
+      ui.activeComp = team.compOrder[0];
+      ui.activeMatchId = team.competitions[ui.activeComp].matches[0]?.id || null;
+    }
+    closeModal();
+    render();
+    saveState();
+    saveUiPrefs();
+  });
+}
+
+// ─── Discipline & team management modals ────────────────────────
+function openAddDisciplineModal() {
+  showModal('Nouvelle discipline', 'Nom (ex. Salle, Extérieur)', '', (name) => {
+    name = name.trim();
+    if (!name) return;
+    if (state.disciplines[name]) { alert('Cette discipline existe déjà.'); return; }
+    // New discipline starts empty; the coach then picks team types from the list.
+    state.disciplines[name] = { teamOrder: [], teams: {} };
+    state.disciplineOrder.push(name);
+    ui.activeDiscipline = name;
+    ui.activeTeam = null;
+    ui.activeComp = null;
+    ui.activeMatchId = null;
+    render();
+    saveState();
+    saveUiPrefs();
+    // Prompt to add the first team straight away.
+    openAddTeamModal();
+  });
+}
+
+function openRenameDisciplineModal(oldName) {
+  showModal('Renommer la discipline', 'Nom', oldName, (newName) => {
+    newName = newName.trim();
+    if (!newName || newName === oldName) return;
+    if (state.disciplines[newName]) { alert('Ce nom est déjà pris.'); return; }
+    state.disciplines[newName] = state.disciplines[oldName];
+    delete state.disciplines[oldName];
+    state.disciplineOrder = state.disciplineOrder.map(n => n === oldName ? newName : n);
+    if (ui.activeDiscipline === oldName) ui.activeDiscipline = newName;
+    render();
+    saveState();
+    saveUiPrefs();
+  }, () => {
+    if (state.disciplineOrder.length <= 1) { alert('Impossible de supprimer la dernière discipline.'); return; }
+    if (!confirm(`Supprimer la discipline "${oldName}", ses équipes et tous leurs matches ?`)) return;
+    delete state.disciplines[oldName];
+    state.disciplineOrder = state.disciplineOrder.filter(n => n !== oldName);
+    if (ui.activeDiscipline === oldName) ui.activeDiscipline = state.disciplineOrder[0];
+    resolveActiveMatch();
+    closeModal();
+    render();
+    saveState();
+    saveUiPrefs();
+  });
+}
+
+function openAddTeamModal() { openTeamModal(null); }
+function openEditTeamModal(teamName) { openTeamModal(teamName); }
+
+// Unified team modal: pick the team TYPE (genre + arme) from a fixed list and
+// edit the 4-archer roster. The type sets the gender (labels archère/archer) and
+// the bow, which determines the match format to apply later.
+function openTeamModal(teamName) {
+  const disc = getActiveDiscipline();
+  if (!disc) { alert('Crée d\'abord une discipline.'); return; }
+  const isEdit = !!(teamName && disc.teams[teamName]);
+  const team = isEdit ? disc.teams[teamName] : null;
+  const esc = (s) => String(s).replace(/"/g, '&quot;');
+
+  // Types already used by OTHER teams (no duplicates of the same type per discipline).
+  const usedByOthers = new Set((disc.teamOrder || []).filter(n => n !== teamName));
+  const available = TEAM_TYPES.filter(t => !usedByOthers.has(t.name));
+  if (!isEdit && available.length === 0) {
+    alert('Toutes les équipes (Femme/Homme · Classique/Poulie) existent déjà dans cette discipline.');
+    return;
+  }
+
+  const currentType = isEdit
+    ? (teamTypeByName(teamName) ? teamName : (available[0] ? available[0].name : teamName))
+    : available[0].name;
+  const a = isEdit
+    ? [team.archers[0] || '', team.archers[1] || '', team.archers[2] || '', team.archers[3] || '']
+    : ['', '', '', ''];
+
+  const optionsHtml = TEAM_TYPES.map(t => {
+    const disabled = (t.name !== teamName) && usedByOthers.has(t.name);
+    const sel = t.name === currentType ? ' selected' : '';
+    return `<option value="${esc(t.name)}"${sel}${disabled ? ' disabled' : ''}>${t.name}${disabled ? ' (déjà créée)' : ''}</option>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation();">
+      <h3>${isEdit ? 'Modifier l\'équipe' : 'Nouvelle équipe'}</h3>
+      <label class="field-label">Type d'équipe</label>
+      <select id="team-type-select" class="team-type-select">${optionsHtml}</select>
+      <label class="field-label" id="team-archers-label"></label>
+      <div class="archer-fields">
+        <input type="text" class="team-archer" data-i="0" value="${esc(a[0])}">
+        <input type="text" class="team-archer" data-i="1" value="${esc(a[1])}">
+        <input type="text" class="team-archer" data-i="2" value="${esc(a[2])}">
+        <input type="text" class="team-archer" data-i="3" value="${esc(a[3])}">
+      </div>
+      <div class="modal-actions">
+        ${isEdit ? '<button class="btn danger" id="team-delete">Supprimer</button>' : ''}
+        <div style="flex:1;"></div>
+        <button class="btn" id="team-cancel">Annuler</button>
+        <button class="btn primary" id="team-ok">${isEdit ? 'Enregistrer' : 'Créer'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+  const select = overlay.querySelector('#team-type-select');
+  const label = overlay.querySelector('#team-archers-label');
+  const inputs = [...overlay.querySelectorAll('.team-archer')];
+  const refreshLabels = () => {
+    const tt = teamTypeByName(select.value);
+    const g = tt ? tt.gender : 'F';
+    label.textContent = `Archers (4 · le format actuel fait tirer 3 ${nArcher(g, true)} + 1 ${nSub(g)})`;
+    inputs.forEach((el, i) => { el.placeholder = `${nArcher(g, false, true)} ${i + 1}`; });
+  };
+  refreshLabels();
+  select.onchange = refreshLabels;
+  if (inputs[0]) inputs[0].focus();
+
+  overlay.querySelector('#team-cancel').onclick = close;
+  overlay.querySelector('#team-ok').onclick = () => {
+    const tt = teamTypeByName(select.value);
+    if (!tt) { alert('Choisis un type d\'équipe.'); return; }
+    const newName = tt.name;
+    const newArchers = inputs.map(el => el.value.trim());
+    if (!isEdit) {
+      if (disc.teams[newName]) { alert('Cette équipe existe déjà.'); return; }
+      disc.teams[newName] = {
+        archers: newArchers,
+        gender: tt.gender,
+        bow: tt.bow,
+        format: 'classique',
+        compOrder: [],
+        competitions: {}
+      };
+      disc.teamOrder.push(newName);
+      ui.activeTeam = newName;
+      ui.activeComp = null;
+      ui.activeMatchId = null;
+      resolveActiveMatch();
+    } else {
+      if (newName !== teamName && disc.teams[newName]) { alert('Ce type d\'équipe existe déjà.'); return; }
+      team.archers = newArchers;
+      team.gender = tt.gender;
+      team.bow = tt.bow;
+      if (newName !== teamName) {
+        disc.teams[newName] = team;
+        delete disc.teams[teamName];
+        disc.teamOrder = disc.teamOrder.map(n => n === teamName ? newName : n);
+        if (ui.activeTeam === teamName) ui.activeTeam = newName;
+      }
+    }
+    close();
+    render();
+    saveState();
+    saveUiPrefs();
+  };
+  if (isEdit) {
+    overlay.querySelector('#team-delete').onclick = () => {
+      if (disc.teamOrder.length <= 1) { alert('Impossible de supprimer la dernière équipe de la discipline.'); return; }
+      if (!confirm(`Supprimer l'équipe "${teamName}" et tous ses matches ?`)) return;
+      delete disc.teams[teamName];
+      disc.teamOrder = disc.teamOrder.filter(n => n !== teamName);
+      if (ui.activeTeam === teamName) ui.activeTeam = disc.teamOrder[0];
+      resolveActiveMatch();
+      close();
+      render();
+      saveState();
+      saveUiPrefs();
+    };
+  }
+}
+
+function showModal(title, placeholder, defaultValue, onConfirm, onDelete) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>${title}</h3>
+      <input type="text" id="modal-input" placeholder="${placeholder}" value="${defaultValue.replace(/"/g, '&quot;')}">
+      <div class="modal-actions">
+        ${onDelete ? '<button class="btn danger" id="modal-delete">Supprimer</button>' : ''}
+        <div style="flex:1;"></div>
+        <button class="btn" id="modal-cancel">Annuler</button>
+        <button class="btn primary" id="modal-ok">OK</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#modal-input');
+  input.focus();
+  input.select();
+
+  const close = () => overlay.remove();
+  overlay.querySelector('#modal-cancel').onclick = close;
+  overlay.querySelector('#modal-ok').onclick = () => {
+    const val = input.value;
+    close();
+    onConfirm(val);
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { overlay.querySelector('#modal-ok').click(); }
+    else if (e.key === 'Escape') close();
+  };
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  if (onDelete) overlay.querySelector('#modal-delete').onclick = onDelete;
+  window._closeModal = close;
+}
+function closeModal() { if (window._closeModal) window._closeModal(); }
+
+// Add match
+document.getElementById('btn-add-match').onclick = () => {
+  if (READ_ONLY()) { showToast('Mode spectateur · clique 🔒 pour passer en mode coach'); return; }
+  showModal('Nouveau match', 'Nom de l\'adversaire', '', (opp) => {
+    const comp = getComps()[ui.activeComp];
+    if (!comp) { showToast('Crée d\'abord une compétition (+ Ajouter)'); return; }
+    const m = emptyMatch(opp);
+    comp.matches.push(m);
+    ui.activeMatchId = m.id;
+    ui.view = 'match';
+    render();
+    saveState();
+    saveUiPrefs();
+  });
+};
+
+// View toggle
+document.getElementById('view-match').onclick = () => {
+  ui.view = 'match';
+  render();
+  saveUiPrefs();
+};
+document.getElementById('view-grouping').onclick = () => {
+  ui.view = 'grouping';
+  render();
+  saveUiPrefs();
+};
+document.getElementById('view-global').onclick = () => {
+  ui.view = 'global';
+  render();
+  saveUiPrefs();
+};
+
+// ───────────────────────────────────────────────────────────
+// Main render dispatcher
+// ───────────────────────────────────────────────────────────
+function render() {
+  renderDisciplineTabs();
+  renderTeamTabs();
+  renderCompTabs();
+
+  const matchView = document.getElementById('match-view');
+  const groupingView = document.getElementById('grouping-view');
+  const globalView = document.getElementById('global-view');
+  const panel = document.getElementById('matches-panel');
+
+  document.getElementById('view-match').classList.toggle('active', ui.view === 'match');
+  document.getElementById('view-grouping').classList.toggle('active', ui.view === 'grouping');
+  document.getElementById('view-global').classList.toggle('active', ui.view === 'global');
+
+  if (ui.view === 'global') {
+    matchView.classList.add('hidden');
+    groupingView.classList.add('hidden');
+    panel.style.display = 'none';
+    globalView.classList.remove('hidden');
+    document.querySelector('main').style.gridTemplateColumns = '1fr';
+    renderGlobalView();
+  } else if (ui.view === 'grouping') {
+    matchView.classList.add('hidden');
+    globalView.classList.add('hidden');
+    panel.style.display = 'none';
+    groupingView.classList.remove('hidden');
+    document.querySelector('main').style.gridTemplateColumns = '1fr';
+    renderGroupingView();
+  } else {
+    matchView.classList.remove('hidden');
+    groupingView.classList.add('hidden');
+    panel.style.display = '';
+    globalView.classList.add('hidden');
+    document.querySelector('main').style.gridTemplateColumns = '';
+    renderMatchesList();
+    renderMatchView();
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// Global listeners (registered once)
+// ───────────────────────────────────────────────────────────
+document.addEventListener('click', () => {
+  if (openPopoverV !== null) {
+    openPopoverV = null;
+    if (ui.view === 'match') renderMatchView();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (targetState) { closeTargetModal(); return; }
+    if (openPopoverV !== null) { openPopoverV = null; renderMatchView(); return; }
+  }
+});
+
+// ───────────────────────────────────────────────────────────
+// Boot
+// ───────────────────────────────────────────────────────────
+(async () => {
+  applyAppConfig();
+  document.getElementById('mode-toggle').onclick = toggleCoachMode;
+  applyCoachMode();
+  await loadState();
+  render();
+})();
+
+</script>
+</body>
+</html>
